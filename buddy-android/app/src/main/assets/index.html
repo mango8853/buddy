@@ -379,15 +379,15 @@
       box-shadow: none;
       overflow: visible;
     }
-    .pet-card.dragging {
-      transition: none !important;
-      box-shadow: none;
+    .pet-card.pet-interacting img,
+    .pet-card.pet-interacting .pet-sprite:not(.codex-avatar) {
+      animation: petTapPop .58s cubic-bezier(.18, .88, .18, 1);
     }
-    .pet-card.ready-left {
-      box-shadow: none;
-    }
-    .pet-card.ready-right {
-      box-shadow: none;
+    @keyframes petTapPop {
+      0% { transform: translateY(0) scale(1); }
+      36% { transform: translateY(-9px) scale(1.04); }
+      72% { transform: translateY(2px) scale(.99); }
+      100% { transform: translateY(0) scale(1); }
     }
     .pet-card img {
       width: 100%;
@@ -1159,6 +1159,8 @@
       waving: buildPetSequence(3, 4, 140, 280),
       waiting: buildPetSequence(6, 6, 150, 260)
     };
+    const PET_INTERACTION_STATE = "waving";
+    const PET_INTERACTION_MS = 2300;
     const state = {
       mood: "idle",
       title: "Ready",
@@ -1204,15 +1206,6 @@
     const burstRightEl = document.getElementById("burstRight");
     const toastEl = document.getElementById("toast");
 
-    const drag = {
-      active: false,
-      startX: 0,
-      startY: 0,
-      dx: 0,
-      dy: 0,
-      raf: 0,
-      activeSide: ""
-    };
     const imageLayout = {
       railW: 160,
       railCenter: 80
@@ -1224,6 +1217,9 @@
       loopStartIndex: 0,
       frames: []
     };
+    let petInteractionTimer = 0;
+    let petInteractionUntil = 0;
+    let lastPetTouchAt = 0;
     let idleReturnTimer = 0;
     let lastDoneToneAt = 0;
     let lastWaitingToneAt = 0;
@@ -1576,11 +1572,40 @@
       return { frames: tripled.concat(PET_IDLE), loopStartIndex: tripled.length };
     }
 
+    function isPetInteractionActive() {
+      return petInteractionUntil > Date.now();
+    }
+
+    function clearPetInteraction() {
+      if (petInteractionTimer) {
+        clearTimeout(petInteractionTimer);
+        petInteractionTimer = 0;
+      }
+      petInteractionUntil = 0;
+      petCardEl.classList.remove("pet-interacting");
+    }
+
+    function triggerPetInteraction() {
+      if (petCardEl.classList.contains("hidden")) return;
+      petInteractionUntil = Date.now() + PET_INTERACTION_MS;
+      petCardEl.classList.remove("pet-interacting");
+      void petCardEl.offsetWidth;
+      petCardEl.classList.add("pet-interacting");
+      syncPetAnimation();
+      if (petInteractionTimer) {
+        clearTimeout(petInteractionTimer);
+      }
+      petInteractionTimer = setTimeout(function() {
+        petInteractionTimer = 0;
+        petInteractionUntil = 0;
+        petCardEl.classList.remove("pet-interacting");
+        syncPetAnimation();
+      }, PET_INTERACTION_MS);
+    }
+
     function inferPetState() {
-      if (drag.active && state.mode === "decision" && !state.decisionOverlayStream) {
-        if (drag.dx <= -16) return "running-left";
-        if (drag.dx >= 16) return "running-right";
-        return "waiting";
+      if (isPetInteractionActive()) {
+        return PET_INTERACTION_STATE;
       }
       if (state.mode === "decision") {
         return "waiting";
@@ -2109,6 +2134,7 @@
     }
 
     function clearState() {
+      clearPetInteraction();
       state.mode = "idle";
       state.mood = "idle";
       state.title = "Ready";
@@ -2473,86 +2499,23 @@
       target.classList.add("run");
     }
 
-    function pointerPoint(event) {
-      const touch = event.touches && event.touches.length ? event.touches[0] :
-        (event.changedTouches && event.changedTouches.length ? event.changedTouches[0] : event);
-      return { x: touch.clientX, y: touch.clientY };
-    }
-
-    function beginDrag(event) {
-      if (state.mode !== "decision" || state.decisionOverlayStream) return;
-      const point = pointerPoint(event);
-      drag.active = true;
-      drag.startX = point.x;
-      drag.startY = point.y;
-      drag.dx = 0;
-      drag.dy = 0;
-      drag.activeSide = "";
-      petCardEl.classList.add("dragging");
-      syncPetAnimation();
-      renderDecision("");
-      event.preventDefault();
-    }
-
-    function scheduleDragVisual() {
-      if (drag.raf) return;
-      drag.raf = requestAnimationFrame(function() {
-        drag.raf = 0;
-        const side = drag.dx < -110 ? "left" : (drag.dx > 110 ? "right" : "");
-        drag.activeSide = side;
-        const clampedX = Math.max(-235, Math.min(235, drag.dx));
-        const clampedY = Math.max(-36, Math.min(26, drag.dy * 0.24));
-        const scale = side ? 0.98 : 1;
-        petCardEl.style.transform = "translate3d(" + clampedX + "px," + clampedY + "px,0) scale(" + scale + ")";
-        syncPetAnimation();
-        renderDecision(side);
-      });
-    }
-
-    function moveDrag(event) {
-      if (!drag.active) return;
-      const point = pointerPoint(event);
-      drag.dx = point.x - drag.startX;
-      drag.dy = point.y - drag.startY;
-      scheduleDragVisual();
-      event.preventDefault();
-    }
-
-    function endDrag(event) {
-      if (!drag.active) return;
-      petCardEl.classList.remove("dragging");
-      if (drag.raf) {
-        cancelAnimationFrame(drag.raf);
-        drag.raf = 0;
+    function handlePetTap(event) {
+      triggerPetInteraction();
+      if (event && event.cancelable) {
+        event.preventDefault();
       }
-      const side = drag.activeSide || (drag.dx < -110 ? "left" : (drag.dx > 110 ? "right" : ""));
-      drag.active = false;
-      drag.dx = 0;
-      drag.dy = 0;
-      if (side) {
-        const settleX = side === "left" ? -194 : 194;
-        petCardEl.style.transform = "translate3d(" + settleX + "px,0,0) scale(.95)";
-        renderDecision(side);
-        syncPetAnimation();
-        setTimeout(function() {
-          respondScene(side);
-        }, 110);
-      } else {
-        petCardEl.style.transform = "translate3d(0,0,0) scale(1)";
-        renderDecision("");
-        syncPetAnimation();
-      }
-      event.preventDefault();
     }
 
     zoneLeftEl.addEventListener("click", function() { respondScene("right"); });
     zoneRightEl.addEventListener("click", function() { respondScene("left"); });
-    petCardEl.addEventListener("touchstart", beginDrag, { passive: false });
-    petCardEl.addEventListener("touchmove", moveDrag, { passive: false });
-    petCardEl.addEventListener("touchend", endDrag, { passive: false });
-    petCardEl.addEventListener("mousedown", beginDrag);
-    window.addEventListener("mousemove", moveDrag);
-    window.addEventListener("mouseup", endDrag);
+    petCardEl.addEventListener("touchend", function(event) {
+      lastPetTouchAt = Date.now();
+      handlePetTap(event);
+    }, { passive: false });
+    petCardEl.addEventListener("click", function(event) {
+      if (Date.now() - lastPetTouchAt < 500) return;
+      handlePetTap(event);
+    });
 
     function tickClock() {
       const d = new Date();
