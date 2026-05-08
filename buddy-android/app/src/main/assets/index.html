@@ -1159,8 +1159,10 @@
       waving: buildPetSequence(3, 4, 140, 280),
       waiting: buildPetSequence(6, 6, 150, 260)
     };
-    const PET_INTERACTION_STATE = "waving";
+    const PET_INTERACTION_STATE = "jumping";
     const PET_INTERACTION_MS = 2300;
+    const PET_NOTICE_STATE = "waving";
+    const PET_NOTICE_MS = 1900;
     const state = {
       mood: "idle",
       title: "Ready",
@@ -1219,6 +1221,8 @@
     };
     let petInteractionTimer = 0;
     let petInteractionUntil = 0;
+    let petNoticeTimer = 0;
+    let petNoticeUntil = 0;
     let lastPetTouchAt = 0;
     let idleReturnTimer = 0;
     let lastDoneToneAt = 0;
@@ -1585,6 +1589,14 @@
       petCardEl.classList.remove("pet-interacting");
     }
 
+    function clearPetNotice() {
+      if (petNoticeTimer) {
+        clearTimeout(petNoticeTimer);
+        petNoticeTimer = 0;
+      }
+      petNoticeUntil = 0;
+    }
+
     function triggerPetInteraction() {
       if (petCardEl.classList.contains("hidden")) return;
       petInteractionUntil = Date.now() + PET_INTERACTION_MS;
@@ -1603,9 +1615,26 @@
       }, PET_INTERACTION_MS);
     }
 
+    function triggerPetNotice() {
+      if (petCardEl.classList.contains("hidden")) return;
+      petNoticeUntil = Date.now() + PET_NOTICE_MS;
+      syncPetAnimation();
+      if (petNoticeTimer) {
+        clearTimeout(petNoticeTimer);
+      }
+      petNoticeTimer = setTimeout(function() {
+        petNoticeTimer = 0;
+        petNoticeUntil = 0;
+        syncPetAnimation();
+      }, PET_NOTICE_MS);
+    }
+
     function inferPetState() {
       if (isPetInteractionActive()) {
         return PET_INTERACTION_STATE;
+      }
+      if (petNoticeUntil > Date.now()) {
+        return PET_NOTICE_STATE;
       }
       if (state.mode === "decision") {
         return "waiting";
@@ -2135,6 +2164,7 @@
 
     function clearState() {
       clearPetInteraction();
+      clearPetNotice();
       state.mode = "idle";
       state.mood = "idle";
       state.title = "Ready";
@@ -2185,6 +2215,7 @@
     function applyEvent(event) {
       if (!event || typeof event !== "object") return;
       const type = event.type || "message";
+      let shouldTriggerPetNotice = false;
 
       if (type === "clear") {
         clearState();
@@ -2419,6 +2450,7 @@
         state.panel = null;
         applyPetSelection(petSelectionFromEvent(event), false);
         state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+        shouldTriggerPetNotice = state.mood === "linked";
       } else if (type === "pet") {
         state.agentKind = resolveEventAgentKind(event, "");
         applyPetSelection(petSelectionFromEvent(event), true);
@@ -2444,9 +2476,13 @@
         state.panel = null;
         applyPetSelection(petSelectionFromEvent(event), false);
         state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+        shouldTriggerPetNotice = true;
       }
 
       renderLayout();
+      if (shouldTriggerPetNotice) {
+        triggerPetNotice();
+      }
       scheduleIdleReturnIfNeeded();
     }
 
