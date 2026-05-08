@@ -5,8 +5,23 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 PIDFILE="${HOME}/.codex/buddy-codex-private.pid"
 STATUSFILE="${BUDDY_CODEX_STATUS:-${HOME}/.codex/buddy-codex-private.status.json}"
 LOGFILE="${BUDDY_CODEX_LOG:-/tmp/buddy-codex-private.log}"
-BUDDY_HOST="${BUDDY_HOST:-localhost}"
+BUDDY_HOST="${BUDDY_HOST:-}"
 BUDDY_PORT="${BUDDY_PORT:-8787}"
+if [ -z "$BUDDY_HOST" ] && [ -f "$STATUSFILE" ]; then
+  BUDDY_HOST="$(STATUSFILE="$STATUSFILE" python3 - <<'PY'
+import json
+import os
+
+try:
+    with open(os.environ["STATUSFILE"], "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    print(data.get("buddyHost") or "")
+except Exception:
+    print("")
+PY
+)"
+fi
+BUDDY_HOST="${BUDDY_HOST:-localhost}"
 export BUDDY_HOST BUDDY_PORT
 
 if [ -f "$PIDFILE" ]; then

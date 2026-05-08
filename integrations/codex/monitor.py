@@ -86,6 +86,17 @@ class CodexPrivateMonitor:
         self.last_emit_ok_at = 0.0
         self.last_status = "idle"
 
+    def begin_turn(self, status: str = "thinking", body: str = "") -> bool:
+        title = self.current_thread.title if self.current_thread else "Codex"
+        payload_body = body if body else title
+        if not self.started or self.ended:
+            if not self.emit({"type": "start", "status": status, "body": payload_body}):
+                return False
+            self.started = True
+            self.ended = False
+            return True
+        return self.emit({"type": "status", "status": status, "body": body or status.title()})
+
     def run(self) -> None:
         while True:
             try:
@@ -146,10 +157,7 @@ class CodexPrivateMonitor:
         self.last_error = ""
         self.prime_recent_rollout_state()
         if self.last_assistant_text:
-            title = self.current_thread.title if self.current_thread else "Codex"
-            self.emit({"type": "start", "status": "thinking", "body": title})
-            self.started = True
-            self.ended = False
+            self.begin_turn("thinking")
             self.emit({"type": "log", "text": self.last_assistant_text})
 
     def latest_log_id(self, thread_id: str) -> int:
@@ -204,24 +212,12 @@ class CodexPrivateMonitor:
             if any(marker in body for marker in RUN_MARKERS):
                 self.last_active_at = time.time()
                 self.waiting_announced = False
-                if not self.started:
-                    title = self.current_thread.title if self.current_thread else "Codex"
-                    self.emit({"type": "start", "status": "thinking", "body": title})
-                    self.started = True
-                    self.ended = False
-                else:
-                    self.emit({"type": "status", "status": "thinking", "body": "Thinking"})
+                self.begin_turn("thinking", "Thinking")
                 continue
             if any(marker in body for marker in WAITING_MARKERS):
                 self.last_active_at = time.time()
                 self.waiting_announced = True
-                if not self.started:
-                    title = self.current_thread.title if self.current_thread else "Codex"
-                    self.emit({"type": "start", "status": "waiting", "body": title})
-                    self.started = True
-                    self.ended = False
-                else:
-                    self.emit({"type": "status", "status": "waiting", "body": "Needs input"})
+                self.begin_turn("waiting", "Needs input")
                 continue
             if any(marker in body for marker in DONE_MARKERS):
                 if self.started and not self.ended:
@@ -239,11 +235,8 @@ class CodexPrivateMonitor:
             self.last_assistant_phase = phase
             self.last_active_at = time.time()
             self.waiting_announced = False
-            if not self.started:
-                title = self.current_thread.title if self.current_thread else "Codex"
-                self.emit({"type": "start", "status": "thinking", "body": title})
-                self.started = True
-                self.ended = False
+            if not self.started or self.ended:
+                self.begin_turn("thinking")
             self.emit({"type": "log", "text": text})
 
     def iter_recent_assistant_messages(self) -> List[Tuple[str, float, str, str]]:
@@ -400,6 +393,8 @@ class CodexPrivateMonitor:
             "lastAssistantPhase": self.last_assistant_phase,
             "lastAssistantPreview": (self.last_assistant_text or "")[:240],
             "lastEmitOkAt": self.last_emit_ok_at,
+            "buddyHost": self.buddy.host,
+            "buddyPort": self.buddy.port,
             "waitingAnnounced": self.waiting_announced,
             "lastError": self.last_error,
             "updatedAt": time.time(),
