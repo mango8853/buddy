@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
+import os
+
 from bridge import BuddyClient, QwenPawCompatAdapter
 
 
 def main():
-    buddy = BuddyClient()
+    buddy_host = os.environ.get("BUDDY_HOST")
+    if not buddy_host:
+        raise SystemExit("Set BUDDY_HOST before running this example.")
+    buddy = BuddyClient(host=buddy_host, port=int(os.environ.get("BUDDY_PORT", "8787")))
     adapter = QwenPawCompatAdapter(stream_id="qwenpaw-demo-1", include_reasoning=False)
 
     sse_payloads = [

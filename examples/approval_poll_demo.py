@@ -5,7 +5,7 @@ import time
 import urllib.request
 
 
-BRIDGE_BASE = os.environ.get("BUDDY_BRIDGE_BASE", "http://127.0.0.1:8799")
+BRIDGE_BASE = os.environ.get("BUDDY_BRIDGE_BASE", "http://localhost:8799")
 APPROVAL_ID = "approval-poll-demo"
 
 

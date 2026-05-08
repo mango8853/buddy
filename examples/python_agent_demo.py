@@ -12,8 +12,11 @@ from bridge import BuddyClient
 
 
 def main():
+    buddy_host = os.environ.get("BUDDY_HOST")
+    if not buddy_host:
+        raise SystemExit("Set BUDDY_HOST before running this example.")
     buddy = BuddyClient(
-        host=os.environ.get("BUDDY_HOST", "10.214.75.86"),
+        host=buddy_host,
         port=int(os.environ.get("BUDDY_PORT", "8787")),
     )
     session = buddy.agent(

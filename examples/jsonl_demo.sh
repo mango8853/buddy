@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+: "${BUDDY_HOST:?set BUDDY_HOST}"
 
 printf '%s\n' \
   '{"type":"log","text":"Starting JSONL demo...\n"}' \
@@ -11,7 +12,7 @@ printf '%s\n' \
   '{"type":"log","text":"Back to stream output...\n"}' \
   '{"type":"end","status":"done","exitCode":0}' \
   | python3 "${ROOT_DIR}/bridge/adapter.py" \
-      --host "${BUDDY_HOST:-10.214.75.86}" \
+      --host "${BUDDY_HOST}" \
       --id "jsonl-demo" \
       --name "${BUDDY_NAME:-Codex}" \
       --status running \

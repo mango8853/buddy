@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 
 try:
     from bridge import BuddyClient, ClaudeDesktopBuddyCompatAdapter
@@ -11,7 +12,10 @@ except ImportError:
 
 
 def main():
-    buddy = BuddyClient()
+    buddy_host = os.environ.get("BUDDY_HOST")
+    if not buddy_host:
+        raise SystemExit("Set BUDDY_HOST before running this example.")
+    buddy = BuddyClient(host=buddy_host, port=int(os.environ.get("BUDDY_PORT", "8787")))
     adapter = ClaudeDesktopBuddyCompatAdapter(stream_id="claude-desktop-demo-1")
 
     native_payloads = [
