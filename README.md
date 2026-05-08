@@ -7,7 +7,7 @@ Buddy 可以把一台带触控屏的小型 Android 设备，变成一个常驻�
 - 支持图片、视频、音频、HTML、stream、approval
 - 支持对接 Codex、QwenPaw、Claude Desktop Buddy，以及 wrapper 型 CLI / agent
 
-英文说明见 [README.en.md](README.en.md)。
+[English](README.en.md)
 
 ## 现在能做什么
 
