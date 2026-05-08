@@ -101,7 +101,7 @@ def command_watch_approvals(args):
 def parser():
     root = argparse.ArgumentParser(description="Mirror QwenPaw output into Buddy.")
     root.add_argument("--qwenpaw-url", default=DEFAULT_QWENPAW_URL)
-    root.add_argument("--buddy-host", default="10.214.75.86")
+    root.add_argument("--buddy-host", default=os.environ.get("BUDDY_HOST", "localhost"))
     root.add_argument("--buddy-port", type=int, default=8787)
     root.add_argument("--buddy-timeout", type=float, default=5)
     root.add_argument("--timeout", type=float, default=60)
@@ -118,7 +118,7 @@ def parser():
     chat.set_defaults(func=command_chat)
 
     approvals = sub.add_parser("watch-approvals")
-    approvals.add_argument("--responses-url", default="http://127.0.0.1:8799/responses")
+    approvals.add_argument("--responses-url", default="http://localhost:8799/responses")
     approvals.add_argument("--interval", type=float, default=1.0)
     approvals.add_argument("--once", action="store_true")
     approvals.set_defaults(func=command_watch_approvals)

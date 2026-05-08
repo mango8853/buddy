@@ -80,7 +80,7 @@ python3 bridge/buddy.py --host <buddy-ip> serve
 然后其他工具就可以调用：
 
 ```sh
-curl -X POST http://127.0.0.1:8799/message \
+curl -X POST http://localhost:8799/message \
   -H 'content-type: application/json' \
   -d '{"title":"Agent","body":"hello"}'
 ```

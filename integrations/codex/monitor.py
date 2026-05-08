@@ -415,7 +415,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Experimental Codex Desktop private-state bridge for Buddy."
     )
-    parser.add_argument("--buddy-host", default="10.214.75.86", help="Buddy device host")
+    parser.add_argument(
+        "--buddy-host",
+        default=os.environ.get("BUDDY_HOST", "localhost"),
+        help="Buddy device host",
+    )
     parser.add_argument("--buddy-port", type=int, default=8787, help="Buddy device port")
     parser.add_argument("--state-db", default=str(DEFAULT_STATE_DB), help="Path to Codex state sqlite DB")
     parser.add_argument("--log-db", default=str(DEFAULT_LOG_DB), help="Path to Codex log sqlite DB")

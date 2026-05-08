@@ -65,7 +65,7 @@ def _build_client() -> BuddyClient:
     cfg = _config()
     BuddyClient = _buddy_client_class()
     return BuddyClient(
-        host=cfg.get("BUDDY_HOST", "10.214.75.86"),
+        host=cfg.get("BUDDY_HOST", "localhost"),
         port=int(cfg.get("BUDDY_PORT", "8787")),
         timeout=float(cfg.get("BUDDY_TIMEOUT", "5")),
     )

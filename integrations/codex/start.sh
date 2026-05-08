@@ -6,7 +6,7 @@ PIDFILE="${HOME}/.codex/buddy-codex-private.pid"
 LOGFILE="${BUDDY_CODEX_LOG:-/tmp/buddy-codex-private.log}"
 STATUSFILE="${BUDDY_CODEX_STATUS:-${HOME}/.codex/buddy-codex-private.status.json}"
 
-BUDDY_HOST="${BUDDY_HOST:-10.214.75.86}"
+: "${BUDDY_HOST:?set BUDDY_HOST}"
 THREAD_ID="${BUDDY_CODEX_THREAD_ID:-}"
 POLL_INTERVAL="${BUDDY_CODEX_POLL_INTERVAL:-1.0}"
 QUIET_DONE_SECONDS="${BUDDY_CODEX_QUIET_DONE_SECONDS:-20}"

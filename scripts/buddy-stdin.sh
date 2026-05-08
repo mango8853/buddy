@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ARGS=(
-  --host "${BUDDY_HOST:-10.214.75.86}"
+  --host "${BUDDY_HOST:?set BUDDY_HOST}"
   --port "${BUDDY_PORT:-8787}"
   --timeout "${BUDDY_TIMEOUT:-5}"
   --name "${BUDDY_NAME:-Agent}"

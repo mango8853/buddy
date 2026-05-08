@@ -138,7 +138,7 @@ def command_jsonl(args):
 
 def parser():
     root = argparse.ArgumentParser(description="Local adapter for mirroring agent activity to Buddy.")
-    root.add_argument("--host", default=env_default("BUDDY_HOST", "10.214.75.86"))
+    root.add_argument("--host", default=env_default("BUDDY_HOST", "localhost"))
     root.add_argument("--port", type=int, default=int(env_default("BUDDY_PORT", 8787)))
     root.add_argument("--timeout", type=float, default=float(env_default("BUDDY_TIMEOUT", 5)))
     root.add_argument("--id")

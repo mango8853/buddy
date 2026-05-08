@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 
-HOST="${1:-10.214.75.86}"
+if [ "$#" -lt 1 ]; then
+  echo "usage: $0 <buddy-ip>" >&2
+  exit 2
+fi
+HOST="$1"
 DIR="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 SERIAL="$HOST:5555"
 

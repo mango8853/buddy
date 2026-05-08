@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from typing import Iterable
 
@@ -25,7 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Translate Claude Desktop Buddy newline-delimited JSON into Buddy events.",
     )
-    parser.add_argument("--buddy-host", default="10.214.75.86")
+    parser.add_argument("--buddy-host", default=os.environ.get("BUDDY_HOST", "localhost"))
     parser.add_argument("--buddy-port", type=int, default=8787)
     parser.add_argument("--stream-id", default="claude-desktop")
     parser.add_argument("--name", default="Claude")

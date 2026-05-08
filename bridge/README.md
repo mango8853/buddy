@@ -22,17 +22,17 @@ Run a small local HTTP bridge for other tools:
 
 ```sh
 python3 bridge/buddy.py --host <buddy-ip> serve
-curl -X POST http://127.0.0.1:8799/message \
+curl -X POST http://localhost:8799/message \
   -H 'content-type: application/json' \
   -d '{"title":"Agent","body":"hello"}'
-curl -X POST http://127.0.0.1:8799/html \
+curl -X POST http://localhost:8799/html \
   -H 'content-type: application/json' \
   -d '{"title":"Agent","html":"<b>hello</b>"}'
-curl -X POST http://127.0.0.1:8799/video \
+curl -X POST http://localhost:8799/video \
   -H 'content-type: application/json' \
   -d '{"url":"http://example.local/clip.mp4","loop":true,"fullscreen":true,"fit":"cover"}'
 
-curl 'http://127.0.0.1:8799/responses?id=approval-123&consume=1'
+curl 'http://localhost:8799/responses?id=approval-123&consume=1'
 ```
 
 The CLI uploads local media files to the Android app and sends an event with the returned `/media/...` URL. The local HTTP bridge is JSON-only, so other tools can push already-hosted URLs or HTML snippets without knowing about Android internals.
@@ -95,23 +95,23 @@ python3 bridge/buddy.py --host <buddy-ip> agent end --id run1 --status done
 HTTP:
 
 ```sh
-curl -X POST http://127.0.0.1:8799/agent/start \
+curl -X POST http://localhost:8799/agent/start \
   -H 'content-type: application/json' \
   -d '{"id":"run1","name":"Codex","status":"running","body":"Working..."}'
 
-curl -X POST http://127.0.0.1:8799/agent/log \
+curl -X POST http://localhost:8799/agent/log \
   -H 'content-type: application/json' \
   -d '{"id":"run1","text":"Scanning repository...\n"}'
 
-curl -X POST http://127.0.0.1:8799/agent/status \
+curl -X POST http://localhost:8799/agent/status \
   -H 'content-type: application/json' \
   -d '{"id":"run1","status":"waiting","body":"Need approval"}'
 
-curl -X POST http://127.0.0.1:8799/agent/approval \
+curl -X POST http://localhost:8799/agent/approval \
   -H 'content-type: application/json' \
   -d '{"id":"run1","title":"Allow continue?","body":"Need your approval."}'
 
-curl -X POST http://127.0.0.1:8799/agent/end \
+curl -X POST http://localhost:8799/agent/end \
   -H 'content-type: application/json' \
   -d '{"id":"run1","status":"done"}'
 ```

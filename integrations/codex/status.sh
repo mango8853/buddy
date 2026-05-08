@@ -5,7 +5,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 PIDFILE="${HOME}/.codex/buddy-codex-private.pid"
 STATUSFILE="${BUDDY_CODEX_STATUS:-${HOME}/.codex/buddy-codex-private.status.json}"
 LOGFILE="${BUDDY_CODEX_LOG:-/tmp/buddy-codex-private.log}"
-BUDDY_HOST="${BUDDY_HOST:-10.214.75.86}"
+BUDDY_HOST="${BUDDY_HOST:-localhost}"
 BUDDY_PORT="${BUDDY_PORT:-8787}"
 export BUDDY_HOST BUDDY_PORT
 

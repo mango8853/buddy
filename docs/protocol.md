@@ -214,7 +214,7 @@ Query options:
 Example:
 
 ```sh
-curl 'http://127.0.0.1:8799/responses?id=approval-123&consume=1'
+curl 'http://localhost:8799/responses?id=approval-123&consume=1'
 ```
 
 ## Compatibility Notes

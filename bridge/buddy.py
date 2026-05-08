@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
 
 
-DEFAULT_HOST = "10.214.75.86"
+DEFAULT_HOST = os.environ.get("BUDDY_HOST", "localhost")
 DEFAULT_PORT = 8787
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CUSTOM_PETS_DIR = os.path.join(REPO_ROOT, "pets", "custom")

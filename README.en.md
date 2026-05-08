@@ -77,13 +77,13 @@ For local tools that prefer HTTP:
 
 ```sh
 python3 bridge/buddy.py --host <buddy-ip> serve
-curl -X POST http://127.0.0.1:8799/message \
+curl -X POST http://localhost:8799/message \
   -H 'content-type: application/json' \
   -d '{"title":"Agent","body":"hello"}'
-curl -X POST http://127.0.0.1:8799/html \
+curl -X POST http://localhost:8799/html \
   -H 'content-type: application/json' \
   -d '{"title":"Card","html":"<div style=\"font-size:28px\">hello</div>"}'
-curl -X POST http://127.0.0.1:8799/video \
+curl -X POST http://localhost:8799/video \
   -H 'content-type: application/json' \
   -d '{"url":"http://example.local/clip.mp4","title":"Clip","loop":true,"fullscreen":true,"fit":"cover"}'
 ```

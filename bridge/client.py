@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+import os
 import json
 import time
 import urllib.error
 import urllib.request
 
 
-DEFAULT_HOST = "10.214.75.86"
+DEFAULT_HOST = os.environ.get("BUDDY_HOST", "localhost")
 DEFAULT_PORT = 8787
 
 
