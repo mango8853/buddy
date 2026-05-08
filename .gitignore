@@ -16,6 +16,8 @@ buddy-android/build/
 buddy-autostart/build/
 *.apk
 *.apk.idsig
+!dist/
+!dist/*.apk
 
 # Downloaded SDK / platform tooling
 platform-tools/

@@ -58,8 +58,8 @@ Please do:
 1. Clone the repository.
 2. Check or prepare runtime dependencies: git, python3, adb, and curl or python3 for downloads.
 3. Find the target device with adb. If more than one device is connected, ask me to choose one or use ADB_SERIAL.
-4. Prefer install-buddy-release.sh. It downloads prebuilt buddy.apk and buddy-autostart.apk from GitHub Releases and installs them onto the Android device.
-5. If release APKs are missing or download fails, use source build as a fallback: prepare JDK 17, Android SDK platform 35, Android build-tools 35.0.0, then run install-buddy-device.sh.
+4. Run install-buddy-release.sh. It prefers prebuilt APKs from GitHub Releases; if release assets are not available yet, it uses the APKs shipped in the repository under dist/.
+5. If both release assets and dist APKs are unavailable, use source build as a fallback: prepare JDK 17, Android SDK platform 35, Android build-tools 35.0.0, then run install-buddy-device.sh.
 6. Enable the autostart helper and launch Buddy once.
 7. Find the device wlan0 IP address and store it as BUDDY_HOST.
 8. Verify the device with: python3 bridge/buddy.py --host $BUDDY_HOST health
@@ -84,8 +84,9 @@ cd buddy
 
 This script:
 
-- downloads prebuilt `buddy.apk` from GitHub Releases
-- downloads prebuilt `buddy-autostart.apk` from GitHub Releases
+- prefers prebuilt `buddy.apk` from GitHub Releases
+- prefers prebuilt `buddy-autostart.apk` from GitHub Releases
+- falls back to `dist/buddy.apk` and `dist/buddy-autostart.apk` from the cloned repository
 - installs both packages onto the adb-connected Android device
 - explicitly runs `pm enable com.codex.buddyautostart`
 - launches Buddy once

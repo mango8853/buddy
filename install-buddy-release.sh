@@ -82,9 +82,21 @@ mkdir -p "$WORKDIR"
 BUDDY_APK="$WORKDIR/buddy.apk"
 AUTOSTART_APK="$WORKDIR/buddy-autostart.apk"
 
+LOCAL_BUDDY_APK="$ROOT/dist/buddy.apk"
+LOCAL_AUTOSTART_APK="$ROOT/dist/buddy-autostart.apk"
+
 echo "[buddy] downloading release APKs from $BASE ..."
-download "$BASE/buddy.apk" "$BUDDY_APK"
-download "$BASE/buddy-autostart.apk" "$AUTOSTART_APK"
+if download "$BASE/buddy.apk" "$BUDDY_APK" && download "$BASE/buddy-autostart.apk" "$AUTOSTART_APK"; then
+  echo "[buddy] using GitHub Release APKs"
+elif [ -f "$LOCAL_BUDDY_APK" ] && [ -f "$LOCAL_AUTOSTART_APK" ]; then
+  echo "[buddy] release APK download failed; using repo-local dist APKs"
+  cp "$LOCAL_BUDDY_APK" "$BUDDY_APK"
+  cp "$LOCAL_AUTOSTART_APK" "$AUTOSTART_APK"
+else
+  echo "[buddy] release APK download failed and dist APKs are missing." >&2
+  echo "[buddy] Build from source with ./install-buddy-device.sh." >&2
+  exit 1
+fi
 
 echo "[buddy] checking adb target..."
 adb_cmd get-state >/dev/null
