@@ -56,14 +56,15 @@ Known inputs:
 
 Please do:
 1. Clone the repository.
-2. Check or prepare build dependencies: git, python3, JDK 17, Android SDK platform 35, Android build-tools 35.0.0, and adb.
+2. Check or prepare runtime dependencies: git, python3, adb, and curl or python3 for downloads.
 3. Find the target device with adb. If more than one device is connected, ask me to choose one or use ADB_SERIAL.
-4. Run install-buddy-device.sh from the cloned repository to install buddy.apk and buddy-autostart.apk onto the Android device.
-5. Enable the autostart helper and launch Buddy once.
-6. Find the device wlan0 IP address and store it as BUDDY_HOST.
-7. Verify the device with: python3 bridge/buddy.py --host $BUDDY_HOST health
-8. Send one test message to the Buddy screen.
-9. Tell me the detected BUDDY_HOST and whether installation succeeded.
+4. Prefer install-buddy-release.sh. It downloads prebuilt buddy.apk and buddy-autostart.apk from GitHub Releases and installs them onto the Android device.
+5. If release APKs are missing or download fails, use source build as a fallback: prepare JDK 17, Android SDK platform 35, Android build-tools 35.0.0, then run install-buddy-device.sh.
+6. Enable the autostart helper and launch Buddy once.
+7. Find the device wlan0 IP address and store it as BUDDY_HOST.
+8. Verify the device with: python3 bridge/buddy.py --host $BUDDY_HOST health
+9. Send one test message to the Buddy screen.
+10. Tell me the detected BUDDY_HOST and whether installation succeeded.
 ```
 
 The command flow usually looks like this:
@@ -77,18 +78,14 @@ cd buddy
 #
 # If more than one adb device is connected:
 # export ADB_SERIAL=<adb-serial>
-#
-# If JDK / Android SDK are not in Buddy's local .tools directory:
-# export JAVA_HOME=/path/to/jdk17
-# export ANDROID_HOME=/path/to/android-sdk
 
-./install-buddy-device.sh
+./install-buddy-release.sh
 ```
 
 This script:
 
-- builds `buddy.apk`
-- builds `buddy-autostart.apk`
+- downloads prebuilt `buddy.apk` from GitHub Releases
+- downloads prebuilt `buddy-autostart.apk` from GitHub Releases
 - installs both packages onto the adb-connected Android device
 - explicitly runs `pm enable com.codex.buddyautostart`
 - launches Buddy once
@@ -101,6 +98,13 @@ The script prints the detected `wlan0` IP candidates at the end. Use that addres
 ```sh
 export BUDDY_HOST=<buddy-ip>
 python3 bridge/buddy.py --host "$BUDDY_HOST" health
+```
+
+If you want to build from source, or if the release APKs are not available yet, use the developer install script:
+
+```sh
+# Requires JDK 17, Android SDK platform 35, and Android build-tools 35.0.0.
+./install-buddy-device.sh
 ```
 
 ## Send Events

@@ -66,14 +66,15 @@ GitHub 仓库：https://github.com/mango8853/buddy.git
 
 请你完成：
 1. clone 仓库。
-2. 准备或检查构建依赖：git、python3、JDK 17、Android SDK platform 35、Android build-tools 35.0.0、adb。
+2. 准备或检查运行依赖：git、python3、adb，以及可下载文件的 curl 或 python3。
 3. 用 adb 找到目标设备；如果有多个设备，让我选择或使用 ADB_SERIAL。
-4. 运行仓库里的 install-buddy-device.sh，把 buddy.apk 和 buddy-autostart.apk 安装进这台 Android 设备。
-5. 启用 autostart helper，并拉起 Buddy。
-6. 找到设备 wlan0 的 IP 地址，记为 BUDDY_HOST。
-7. 用 python3 bridge/buddy.py --host $BUDDY_HOST health 验证 Buddy 服务可用。
-8. 发送一条测试消息到 Buddy 屏幕。
-9. 告诉我 BUDDY_HOST 是多少，以及安装是否成功。
+4. 优先运行仓库里的 install-buddy-release.sh，从 GitHub Releases 下载编译好的 buddy.apk 和 buddy-autostart.apk，并安装进这台 Android 设备。
+5. 如果 release APK 不存在或下载失败，再把源码编译安装作为备用方案：准备 JDK 17、Android SDK platform 35、Android build-tools 35.0.0，然后运行 install-buddy-device.sh。
+6. 启用 autostart helper，并拉起 Buddy。
+7. 找到设备 wlan0 的 IP 地址，记为 BUDDY_HOST。
+8. 用 python3 bridge/buddy.py --host $BUDDY_HOST health 验证 Buddy 服务可用。
+9. 发送一条测试消息到 Buddy 屏幕。
+10. 告诉我 BUDDY_HOST 是多少，以及安装是否成功。
 ```
 
 agent 实际执行时，通常会是这条链路：
@@ -87,18 +88,14 @@ cd buddy
 #
 # 如果有多个 adb 设备，可以设置：
 # export ADB_SERIAL=<adb-serial>
-#
-# 如果 JDK / Android SDK 不在默认位置，可以设置：
-# export JAVA_HOME=/path/to/jdk17
-# export ANDROID_HOME=/path/to/android-sdk
 
-./install-buddy-device.sh
+./install-buddy-release.sh
 ```
 
 这个脚本会：
 
-- 构建 `buddy.apk`
-- 构建 `buddy-autostart.apk`
+- 从 GitHub Releases 下载编译好的 `buddy.apk`
+- 从 GitHub Releases 下载编译好的 `buddy-autostart.apk`
 - 安装两者到当前 adb 连接的 Android 设备
 - 启用 autostart helper
 - 拉起 Buddy 一次
@@ -108,6 +105,13 @@ cd buddy
 ```sh
 export BUDDY_HOST=<buddy-ip>
 python3 bridge/buddy.py --host "$BUDDY_HOST" health
+```
+
+如果你要从源码编译，或者 release 里暂时还没有 APK，可以用开发者安装脚本：
+
+```sh
+# 需要 JDK 17、Android SDK platform 35、Android build-tools 35.0.0
+./install-buddy-device.sh
 ```
 
 ### 2. 发送一个最简单的事件
