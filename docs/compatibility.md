@@ -74,7 +74,7 @@ For a runnable stdin bridge, use:
 
 ```sh
 python3 bridge/claude_desktop_buddy_bridge.py \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   --stream-id claude-desktop \
   < hardware-buddy.ndjson
 ```
@@ -171,7 +171,7 @@ Recommended entrypoint:
 Or pin it to a specific Codex thread:
 
 ```sh
-export BUDDY_HOST=10.214.75.86
+export BUDDY_HOST=<buddy-ip>
 export BUDDY_CODEX_THREAD_ID=019dafba-5428-7352-b77f-95c3a4db344a
 ./integrations/codex/start.sh
 ```
@@ -271,7 +271,7 @@ Example commands:
 ```sh
 python3 bridge/qwenpaw_bridge.py \
   --qwenpaw-url http://127.0.0.1:8088 \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   --name QwenPaw \
   chat \
   --session-id qwenpaw-demo \
@@ -282,7 +282,7 @@ python3 bridge/qwenpaw_bridge.py \
 ```sh
 python3 bridge/qwenpaw_bridge.py \
   --qwenpaw-url http://127.0.0.1:8088 \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   watch-approvals
 ```
 

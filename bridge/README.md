@@ -3,25 +3,25 @@
 Send status events from a Mac or any local agent to the Buddy Android app.
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 health
-python3 bridge/buddy.py --host 10.214.75.86 version
-python3 bridge/buddy.py --host 10.214.75.86 message "开始处理任务" --title "Codex"
-python3 bridge/buddy.py --host 10.214.75.86 approval "允许执行？" "是否继续运行这条命令？"
-python3 bridge/buddy.py --host 10.214.75.86 image ./photo.png --title "图片"
-python3 bridge/buddy.py --host 10.214.75.86 video ./clip.mp4 --title "视频" --loop --fullscreen --fit cover
-python3 bridge/buddy.py --host 10.214.75.86 audio ./ding.wav --title "提示音" --loop
-python3 bridge/buddy.py --host 10.214.75.86 html '<div style="font-size:30px">任务完成</div>' --title "HTML" --fullscreen
-python3 bridge/buddy.py --host 10.214.75.86 stop-audio
-python3 bridge/buddy.py --host 10.214.75.86 pet list
-python3 bridge/buddy.py --host 10.214.75.86 pet import --id moss ./my-codex-spritesheet.webp
-python3 bridge/buddy.py --host 10.214.75.86 pet set --pet-id moss
-python3 bridge/buddy.py --host 10.214.75.86 demo
+python3 bridge/buddy.py --host <buddy-ip> health
+python3 bridge/buddy.py --host <buddy-ip> version
+python3 bridge/buddy.py --host <buddy-ip> message "开始处理任务" --title "Codex"
+python3 bridge/buddy.py --host <buddy-ip> approval "允许执行？" "是否继续运行这条命令？"
+python3 bridge/buddy.py --host <buddy-ip> image ./photo.png --title "图片"
+python3 bridge/buddy.py --host <buddy-ip> video ./clip.mp4 --title "视频" --loop --fullscreen --fit cover
+python3 bridge/buddy.py --host <buddy-ip> audio ./ding.wav --title "提示音" --loop
+python3 bridge/buddy.py --host <buddy-ip> html '<div style="font-size:30px">任务完成</div>' --title "HTML" --fullscreen
+python3 bridge/buddy.py --host <buddy-ip> stop-audio
+python3 bridge/buddy.py --host <buddy-ip> pet list
+python3 bridge/buddy.py --host <buddy-ip> pet import --id moss ./my-codex-spritesheet.webp
+python3 bridge/buddy.py --host <buddy-ip> pet set --pet-id moss
+python3 bridge/buddy.py --host <buddy-ip> demo
 ```
 
 Run a small local HTTP bridge for other tools:
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 serve
+python3 bridge/buddy.py --host <buddy-ip> serve
 curl -X POST http://127.0.0.1:8799/message \
   -H 'content-type: application/json' \
   -d '{"title":"Agent","body":"hello"}'
@@ -61,9 +61,9 @@ claw, codex, dewey, fireball, rocky, seedy, stacky, bsod, null-signal
 Import a custom pet once and then reuse it anywhere the bridge accepts `--pet-id`:
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 pet import --id moss ./my-codex-spritesheet.webp
-python3 bridge/buddy.py --host 10.214.75.86 stream --pet-id moss --title "Build" --exec zsh -lc 'make'
-python3 bridge/buddy.py --host 10.214.75.86 pet remove --id moss
+python3 bridge/buddy.py --host <buddy-ip> pet import --id moss ./my-codex-spritesheet.webp
+python3 bridge/buddy.py --host <buddy-ip> stream --pet-id moss --title "Build" --exec zsh -lc 'make'
+python3 bridge/buddy.py --host <buddy-ip> pet remove --id moss
 ```
 
 The local HTTP bridge accepts the same pet fields:
@@ -85,11 +85,11 @@ For agent integrations, treat Buddy as a simple stream lifecycle:
 CLI:
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 agent start --id run1 --name Codex --status running --body "Working..."
-python3 bridge/buddy.py --host 10.214.75.86 agent log --id run1 "Scanning repository...\n"
-python3 bridge/buddy.py --host 10.214.75.86 agent status --id run1 waiting --body "Need approval"
-python3 bridge/buddy.py --host 10.214.75.86 agent approval --id run1 "Allow continue?" "Need your approval."
-python3 bridge/buddy.py --host 10.214.75.86 agent end --id run1 --status done
+python3 bridge/buddy.py --host <buddy-ip> agent start --id run1 --name Codex --status running --body "Working..."
+python3 bridge/buddy.py --host <buddy-ip> agent log --id run1 "Scanning repository...\n"
+python3 bridge/buddy.py --host <buddy-ip> agent status --id run1 waiting --body "Need approval"
+python3 bridge/buddy.py --host <buddy-ip> agent approval --id run1 "Allow continue?" "Need your approval."
+python3 bridge/buddy.py --host <buddy-ip> agent end --id run1 --status done
 ```
 
 HTTP:
@@ -121,7 +121,7 @@ Python:
 ```python
 from bridge import BuddyClient
 
-buddy = BuddyClient(host="10.214.75.86")
+buddy = BuddyClient(host="<buddy-ip>")
 session = buddy.agent("run1", name="Codex", status="running", body="Working...")
 session.log("Scanning repository...\n")
 session.status_update("waiting", body="Need approval")
@@ -150,7 +150,7 @@ That makes these the default entrypoints we expect third-party agents to adopt:
 The wrappers support environment variables, so an agent installer can set them once:
 
 ```sh
-export BUDDY_HOST=10.214.75.86
+export BUDDY_HOST=<buddy-ip>
 export BUDDY_NAME=Codex
 export BUDDY_STATUS=running
 export BUDDY_BODY="Working..."
@@ -159,7 +159,7 @@ export BUDDY_BODY="Working..."
 Wrap a command:
 
 ```sh
-python3 bridge/adapter.py --host 10.214.75.86 --id run1 --name Codex --status running \
+python3 bridge/adapter.py --host <buddy-ip> --id run1 --name Codex --status running \
   --body "Streaming wrapped command output" \
   run --exec zsh -lc 'printf "hello from adapter\n"; ls bridge'
 ```
@@ -173,7 +173,7 @@ scripts/buddy-run.sh zsh -lc 'printf "hello from wrapper\n"; ls bridge'
 Mirror stdin:
 
 ```sh
-some-command 2>&1 | python3 bridge/adapter.py --host 10.214.75.86 --id run1 --name Codex stdin
+some-command 2>&1 | python3 bridge/adapter.py --host <buddy-ip> --id run1 --name Codex stdin
 ```
 
 Or with the stdin wrapper:
@@ -190,7 +190,7 @@ printf '%s\n' \
   '{"type":"status","status":"waiting","body":"Need approval"}' \
   '{"type":"approval","title":"Allow continue?","body":"Need your approval."}' \
   '{"type":"end","status":"done","exitCode":0}' \
-  | python3 bridge/adapter.py --host 10.214.75.86 --id run1 --name Codex jsonl
+  | python3 bridge/adapter.py --host <buddy-ip> --id run1 --name Codex jsonl
 ```
 
 ## Practical note on "connecting Codex itself"
@@ -253,7 +253,7 @@ bridge is:
 
 ```sh
 python3 bridge/claude_desktop_buddy_bridge.py \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   --stream-id claude-desktop \
   < hardware-buddy.ndjson
 ```
@@ -269,7 +269,7 @@ For a pure Python embedding path, use:
 ```python
 from bridge import BuddyClient, ClaudeDesktopBuddyCompatAdapter
 
-buddy = BuddyClient(host="10.214.75.86")
+buddy = BuddyClient(host="<buddy-ip>")
 adapter = ClaudeDesktopBuddyCompatAdapter(stream_id="claude-desktop")
 for event in adapter.translate(native_payload):
     buddy.send_event(event)
@@ -302,7 +302,7 @@ Stop it with:
 The legacy bridge path still works for backward compatibility:
 
 ```sh
-python3 bridge/codex_private_bridge.py --buddy-host 10.214.75.86
+python3 bridge/codex_private_bridge.py --buddy-host <buddy-ip>
 ```
 
 ### QwenPaw entrypoints
@@ -322,7 +322,7 @@ The manual debug entrypoint is:
 ```sh
 python3 bridge/qwenpaw_bridge.py \
   --qwenpaw-url http://127.0.0.1:8088 \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   --name QwenPaw \
   chat \
   --session-id qwenpaw-demo \
@@ -335,7 +335,7 @@ To relay approvals back from Buddy into QwenPaw:
 ```sh
 python3 bridge/qwenpaw_bridge.py \
   --qwenpaw-url http://127.0.0.1:8088 \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   watch-approvals
 ```
 

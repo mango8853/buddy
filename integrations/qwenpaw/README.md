@@ -33,7 +33,7 @@ From the Buddy repo:
 
 ```sh
 ./integrations/qwenpaw/install.sh \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   --qwenpaw-url http://127.0.0.1:8088
 ```
 
@@ -41,7 +41,7 @@ If you also want approval relay from Buddy back into QwenPaw:
 
 ```sh
 ./integrations/qwenpaw/install.sh \
-  --buddy-host 10.214.75.86 \
+  --buddy-host <buddy-ip> \
   --qwenpaw-url http://127.0.0.1:8088 \
   --responses-url http://YOUR_BRIDGE_HOST:8799/responses
 ```

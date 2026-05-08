@@ -1,386 +1,232 @@
 # Buddy
 
-Buddy turns a rooted touch-screen speaker into a small local agent display.
+Buddy 可以把一台带触控屏的小型 Android 设备，变成一个常驻的本地 Agent 屏幕。
 
-Buddy is built around three pieces:
+- 左侧显示宠物、状态、审批入口
+- 右侧显示流式输出、媒体内容或其他界面
+- 支持图片、视频、音频、HTML、stream、approval
+- 支持对接 Codex、QwenPaw、Claude Desktop Buddy，以及 wrapper 型 CLI / agent
 
-- an Android display app for a small always-on screen
-- a host bridge for streams, approvals, media, and pets
-- host-specific integrations for Codex, QwenPaw, Claude Desktop Buddy, and wrapper-based agents
+英文说明见 [README.en.md](README.en.md)。
 
-The Android app itself is intentionally generic:
+## 现在能做什么
 
-- full-screen WebView UI
-- small animated buddy
-- HTTP API on port `8787`
-- WebSocket endpoint
-- approval buttons that return responses
+目前 Buddy 已经具备这些能力：
 
-## Current Status
+- Android 端显示应用
+- 开机自启 helper
+- 本地 HTTP / Python / CLI bridge
+- 宠物系统，支持内置和自定义 spritesheet
+- stream 输出界面
+- approval 审批覆盖层
+- QwenPaw 集成
+- Codex 私有 sidecar 集成
+- Claude Desktop Buddy 协议兼容桥
 
-Buddy is already usable as an alpha-stage open-source project.
+其中这些部分仍然属于实验性：
 
-Stable enough to build on:
+- 依赖宿主私有状态的集成
+- 没有公开宿主 API 时的状态推断逻辑
 
-- Android app, media scenes, stream scene, approval overlay
-- autostart helper on the target device
-- CLI / HTTP / Python bridge surfaces
-- QwenPaw integration
-- Codex private sidecar integration
-- Claude Desktop Buddy compatibility bridge
+## 仓库结构
 
-Still intentionally experimental:
+项目大致分成 5 层：
 
-- host-specific state inference where no public host API exists
-- exact behavior of private desktop integrations after upstream app updates
+1. `buddy-android/`
+   Android 显示 app，本地 HTTP 服务和 WebView UI 都在这里。
 
-Device-specific root tasks, such as SSH or Wi-Fi ADB setup, live in `scripts/` and are not part of the APK.
+2. `buddy-autostart/`
+   开机自启 helper。
 
-## Install On Device
+3. `bridge/`
+   通用 bridge、Python client、CLI、compat 层。
 
-The recommended device install flow is:
+4. `integrations/`
+   面向具体宿主的集成入口。
+
+5. `docs/`
+   协议、兼容层、发布检查等文档。
+
+## 快速开始
+
+### 1. 安装到设备
+
+推荐直接用：
 
 ```sh
 ./install-buddy-device.sh
 ```
 
-This script:
+这个脚本会：
 
-- builds `buddy.apk`
-- builds `buddy-autostart.apk`
-- installs both packages
-- explicitly runs `pm enable com.codex.buddyautostart`
-- launches Buddy once
+- 构建 `buddy.apk`
+- 构建 `buddy-autostart.apk`
+- 安装两者
+- 启用 autostart helper
+- 拉起 Buddy 一次
 
-So the boot helper is not only present in the manifest, but also left enabled on
-the target device by default.
-
-## Send Events
+### 2. 发送一个最简单的事件
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 message "hello" --title "Agent"
-python3 bridge/buddy.py --host 10.214.75.86 approval "Allow?" "Continue running this task?"
-python3 bridge/buddy.py --host 10.214.75.86 image ./photo.png --title "Snapshot"
-python3 bridge/buddy.py --host 10.214.75.86 video ./clip.mp4 --title "Preview" --loop --fullscreen --fit cover
-python3 bridge/buddy.py --host 10.214.75.86 audio ./ding.wav --title "Done" --loop
-python3 bridge/buddy.py --host 10.214.75.86 html '<b style="font-size:32px">OK</b>' --title "HTML" --fullscreen
-python3 bridge/buddy.py --host 10.214.75.86 stop-audio
-python3 bridge/buddy.py --host 10.214.75.86 pet list
-python3 bridge/buddy.py --host 10.214.75.86 pet import --id moss ./my-pet-spritesheet.webp
-python3 bridge/buddy.py --host 10.214.75.86 pet set --pet-id dewey
-python3 bridge/buddy.py --host 10.214.75.86 pet set --pet-id moss
+python3 bridge/buddy.py --host <buddy-ip> message "hello" --title "Buddy"
 ```
 
-For local tools that prefer HTTP:
+### 3. 启动本地 bridge
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 serve
+python3 bridge/buddy.py --host <buddy-ip> serve
+```
+
+然后其他工具就可以调用：
+
+```sh
 curl -X POST http://127.0.0.1:8799/message \
   -H 'content-type: application/json' \
   -d '{"title":"Agent","body":"hello"}'
-curl -X POST http://127.0.0.1:8799/html \
-  -H 'content-type: application/json' \
-  -d '{"title":"Card","html":"<div style=\"font-size:28px\">hello</div>"}'
-curl -X POST http://127.0.0.1:8799/video \
-  -H 'content-type: application/json' \
-  -d '{"url":"http://example.local/clip.mp4","title":"Clip","loop":true,"fullscreen":true,"fit":"cover"}'
 ```
 
-The direct CLI can upload local images, videos, and audio files to the Android app before sending the event. The lightweight HTTP bridge accepts JSON events and is useful for agent integrations; for binary file upload, call the CLI or POST directly to the Android app's `/api/upload`.
+## 常见命令
 
-Media events support `fullscreen`, `fit` (`contain`, `cover`, `fill`), and text fields. Video also supports `loop`, `controls`, `muted`, and `autoplay`; audio supports `loop`.
+### 文本 / 审批 / HTML
 
-## Pets
+```sh
+python3 bridge/buddy.py --host <buddy-ip> message "hello" --title "Agent"
+python3 bridge/buddy.py --host <buddy-ip> approval "Allow?" "Continue running this task?"
+python3 bridge/buddy.py --host <buddy-ip> html '<b style="font-size:32px">OK</b>' --title "HTML" --fullscreen
+```
 
-Buddy now mirrors the Codex desktop pet model:
+### 图片 / 视频 / 音频
 
-- built-in Codex pets by `petId`
-- custom animated pets via `petSpritesheetUrl`
-- legacy static pet images via `petUrl`
+```sh
+python3 bridge/buddy.py --host <buddy-ip> image ./photo.png --title "Snapshot"
+python3 bridge/buddy.py --host <buddy-ip> video ./clip.mp4 --title "Preview" --loop --fullscreen --fit cover
+python3 bridge/buddy.py --host <buddy-ip> audio ./ding.wav --title "Done" --loop
+python3 bridge/buddy.py --host <buddy-ip> stop-audio
+```
 
-Built-in pets:
+### 宠物
+
+```sh
+python3 bridge/buddy.py --host <buddy-ip> pet list
+python3 bridge/buddy.py --host <buddy-ip> pet set --pet-id codex
+python3 bridge/buddy.py --host <buddy-ip> pet import --id moss ./my-pet-spritesheet.webp
+python3 bridge/buddy.py --host <buddy-ip> pet set --pet-id moss
+python3 bridge/buddy.py --host <buddy-ip> pet remove --id moss
+```
+
+## 宠物系统
+
+Buddy 目前沿用了 Codex 桌面版那套宠物 spritesheet 思路。
+
+内置宠物：
 
 ```text
 claw, codex, dewey, fireball, rocky, seedy, stacky, bsod, null-signal
 ```
 
-Examples:
+自定义宠物说明见：
 
-```sh
-python3 bridge/buddy.py --host 10.214.75.86 pet set --pet-id codex
-python3 bridge/buddy.py --host 10.214.75.86 stream --pet-id rocky --title "Build" --exec zsh -lc 'make'
-python3 bridge/buddy.py --host 10.214.75.86 pet import --id moss ./my-codex-format-spritesheet.webp
-python3 bridge/buddy.py --host 10.214.75.86 pet set --pet-id moss
-python3 bridge/buddy.py --host 10.214.75.86 pet remove --id moss
-```
+- [pets/custom/README.md](pets/custom/README.md)
 
-Custom pets are stored under [pets/custom/README.md](pets/custom/README.md). Importing one copies the spritesheet into the repo-local custom pet directory, so later `stream`, `scene`, and `agent` commands can reuse it by `petId`.
+## Agent 集成
 
-Custom pets should use the same Codex-style spritesheet layout as the desktop app: 8 columns by 9 rows, with the same state rows used by Buddy (`idle`, `running`, `running-left`, `running-right`, `waiting`, `review`, `failed`, `jumping`, `waving`).
-
-## Agent Integration
-
-Buddy now has a stable agent-oriented surface:
-
-- CLI lifecycle commands under `agent`
-- matching local HTTP endpoints under `/agent/*`
-- a small importable Python client in `bridge/client.py`
-- a local adapter in `bridge/adapter.py` for wrapping commands or stdin streams
-
-The intended lifecycle is:
+Buddy 把 agent 生命周期抽成了稳定协议：
 
 ```text
 start -> log/chunk -> status/meta -> approval (optional) -> end
 ```
 
-Examples:
+### CLI 示例
 
 ```sh
-python3 bridge/buddy.py --host 10.214.75.86 agent start --id run1 --name Codex --status running --body "Working..."
-python3 bridge/buddy.py --host 10.214.75.86 agent log --id run1 "Scanning repository...\n"
-python3 bridge/buddy.py --host 10.214.75.86 agent approval --id run1 "Allow continue?" "Need your approval."
-python3 bridge/buddy.py --host 10.214.75.86 agent end --id run1 --status done
+python3 bridge/buddy.py --host <buddy-ip> agent start --id run1 --name Codex --status running --body "Working..."
+python3 bridge/buddy.py --host <buddy-ip> agent log --id run1 "Scanning repository...\n"
+python3 bridge/buddy.py --host <buddy-ip> agent approval --id run1 "Allow continue?" "Need your approval."
+python3 bridge/buddy.py --host <buddy-ip> agent end --id run1 --status done
 ```
+
+### Python 示例
 
 ```python
 from bridge import BuddyClient
 
-buddy = BuddyClient(host="10.214.75.86")
+buddy = BuddyClient(host="<buddy-ip>")
 session = buddy.agent("run1", name="Codex", status="running", body="Working...")
 session.log("Scanning repository...\n")
 session.approval("Allow continue?", "Need your approval.")
 session.end("done")
 ```
 
-This is enough for:
+### 默认接入规则
 
-- mirroring shell command output
-- streaming agent logs
-- pausing for approval without losing the stream underneath
+如果第三方 agent 要接入这个项目，推荐默认遵守这条规则：
 
-### Default rule for host agents
+- 值得显示到 Buddy 的命令都走 `scripts/buddy-run.sh`
+- 现成 stdout 流都走 `scripts/buddy-stdin.sh`
+- 更复杂的宿主集成直接调用 `bridge/client.py`
 
-If an agent is installed against this project, the default rule should be:
-
-- anything worth showing on Buddy runs through `scripts/buddy-run.sh`
-- existing stdout pipelines go through `scripts/buddy-stdin.sh`
-- richer host integrations can call `bridge/client.py` directly for status and approval events
-
-Minimal setup:
+例如：
 
 ```sh
-export BUDDY_HOST=10.214.75.86
+export BUDDY_HOST=<buddy-ip>
 export BUDDY_NAME=Codex
 export BUDDY_STATUS=running
-```
 
-Examples:
-
-```sh
 scripts/buddy-run.sh zsh -lc 'git status'
-```
-
-```sh
 some-command 2>&1 | scripts/buddy-stdin.sh
 ```
 
-True token-by-token mirroring of a desktop chat UI still needs host-side support from that app; the Buddy bridge can consume such a stream once the host exposes it.
+## 兼容层
 
-## Compatibility Layers
+Buddy 的设备协议保持稳定，宿主差异通过 compat 层解决。
 
-Buddy should expose one stable device protocol and many host-specific adapters.
-
-That means:
-
-- the Android app and Buddy protocol stay generic
-- each agent family gets its own compatibility layer
-- the README can tell integrators exactly which entrypoint to use
-
-Today the built-in compatibility package lives under [bridge/compat/](bridge/compat/):
+内置 compat 模块：
 
 - [bridge/compat/claude_desktop_buddy.py](bridge/compat/claude_desktop_buddy.py)
 - [bridge/compat/claude_code.py](bridge/compat/claude_code.py)
 - [bridge/compat/codex_private.py](bridge/compat/codex_private.py)
 - [bridge/compat/openclaw.py](bridge/compat/openclaw.py)
 - [bridge/compat/qwenpaw.py](bridge/compat/qwenpaw.py)
-- shared base helpers in [bridge/compat/base.py](bridge/compat/base.py)
 
-Use them like this:
+### 已有集成
 
-- **Claude Desktop Buddy**: route Anthropic hardware buddy heartbeat snapshots,
-  recent transcript entries, permission prompts, and `evt:"turn"` events
-  through the Claude Desktop Buddy compat layer or stdin bridge.
-- **Claude Code**: route host snapshots, transcript entries, approval prompts, and turn-complete events through the Claude Code compat layer.
-- **Codex Desktop**: use the private sidecar monitor under [integrations/codex/](integrations/codex/). It mirrors thread-local `thinking`, `waiting`, `done/failed`, and recent assistant text into Buddy.
-- **openclaw**: route structured lifecycle events through the openclaw compat layer.
-- **QwenPaw**: prefer the installer-based runtime patch for automatic Buddy mirroring; use [bridge/qwenpaw_bridge.py](bridge/qwenpaw_bridge.py) as the manual/debug bridge entrypoint.
-- **other agents**: add another module under `bridge/compat/` instead of changing the Android app protocol.
+- **Claude Desktop Buddy**  
+  兼容 Anthropic 文档公开的 heartbeat / turn / permission 协议。
 
-This keeps Buddy's wire format stable while letting each host integration feel native.
+- **Codex Desktop**  
+  使用私有 sidecar monitor，从本地状态中推断 `thinking / waiting / done`。
 
-### Claude Desktop Buddy Quick Start
+- **QwenPaw**  
+  支持安装型 runtime patch，也支持手动 debug bridge。
 
-If you already have newline-delimited JSON payloads from Anthropic's hardware
-buddy bridge, pipe them into:
+- **openclaw / CLI agents**  
+  通过 wrapper / adapter 接入。
 
-```sh
-python3 bridge/claude_desktop_buddy_bridge.py \
-  --buddy-host 10.214.75.86 \
-  --stream-id claude-desktop \
-  < hardware-buddy.ndjson
-```
+## 文档入口
 
-This path is designed around Anthropic's documented protocol in
-[claude-desktop-buddy](https://github.com/anthropics/claude-desktop-buddy) and
-[REFERENCE.md](https://github.com/anthropics/claude-desktop-buddy/blob/main/REFERENCE.md):
-heartbeat snapshots with `total/running/waiting/msg/entries/prompt`, plus
-completed `evt:"turn"` messages.
+- 协议说明：[docs/protocol.md](docs/protocol.md)
+- 兼容层说明：[docs/compatibility.md](docs/compatibility.md)
+- 发布检查单：[docs/publish-checklist.md](docs/publish-checklist.md)
+- bridge 说明：[bridge/README.md](bridge/README.md)
 
-If you need to translate Buddy approval results back into Anthropic permission
-commands, use:
+## 示例
 
-```python
-from bridge import ClaudeDesktopBuddyCompatAdapter
+- [examples/python_agent_demo.py](examples/python_agent_demo.py)
+- [examples/claude_code_compat_demo.py](examples/claude_code_compat_demo.py)
+- [examples/claude_desktop_buddy_demo.py](examples/claude_desktop_buddy_demo.py)
+- [examples/openclaw_compat_demo.py](examples/openclaw_compat_demo.py)
+- [examples/qwenpaw_compat_demo.py](examples/qwenpaw_compat_demo.py)
+- [examples/jsonl_demo.sh](examples/jsonl_demo.sh)
+- [examples/wrapped_command_demo.sh](examples/wrapped_command_demo.sh)
+- [examples/approval_poll_demo.py](examples/approval_poll_demo.py)
 
-ClaudeDesktopBuddyCompatAdapter.buddy_response_to_permission_command(
-    {"action": "approve"},
-    "req_abc123",
-)
-```
-
-### Codex Quick Start
-
-The Codex integration is a private sidecar monitor, not an official plugin API.
-
-Use the new integration directory:
-
-```sh
-./integrations/codex/start.sh
-```
-
-Useful variables:
-
-```sh
-export BUDDY_HOST=10.214.75.86
-export BUDDY_CODEX_THREAD_ID=019dafba-5428-7352-b77f-95c3a4db344a
-./integrations/codex/start.sh
-```
-
-If you want Buddy to react as you switch between Codex sessions, do **not** pin
-one thread id:
-
-```sh
-unset BUDDY_CODEX_THREAD_ID
-./integrations/codex/start.sh
-```
-
-Stop it with:
-
-```sh
-./integrations/codex/stop.sh
-```
-
-Restart or inspect it with:
-
-```sh
-./integrations/codex/restart.sh
-./integrations/codex/status.sh
-```
-
-Details live in
-[integrations/codex/README.md](integrations/codex/README.md).
-
-### QwenPaw Quick Start
-
-For a manual or debug bridge, if QwenPaw is already running and reachable over
-HTTP, use:
-
-```sh
-python3 bridge/qwenpaw_bridge.py \
-  --qwenpaw-url http://127.0.0.1:8088 \
-  --buddy-host 10.214.75.86 \
-  --name QwenPaw \
-  chat \
-  --session-id qwenpaw-demo \
-  --user-id buddy-test \
-  --text 'Please reply in exactly three short lines: QWENPAW, BUDDY, OK.'
-```
-
-If you also want Buddy approvals to reply back into QwenPaw:
-
-```sh
-python3 bridge/qwenpaw_bridge.py \
-  --qwenpaw-url http://127.0.0.1:8088 \
-  --buddy-host 10.214.75.86 \
-  watch-approvals
-```
-
-For the recommended automatic mode, install the QwenPaw integration onto the
-QwenPaw host:
-
-```sh
-./integrations/qwenpaw/install.sh \
-  --buddy-host 10.214.75.86 \
-  --qwenpaw-url http://127.0.0.1:8088
-```
-
-Installer details live in
-[integrations/qwenpaw/README.md](integrations/qwenpaw/README.md).
-
-After installation, QwenPaw's normal `/api/console/chat` stream is mirrored to
-Buddy automatically, and the broader channel lifecycle is patched so session-
-scoped outputs that flow through QwenPaw's channel manager also mirror into
-Buddy. `bridge/qwenpaw_bridge.py` remains available as a manual debug
-entrypoint, but it is no longer the main path for installed QwenPaw hosts.
-
-To restore patched files and remove the integration:
-
-```sh
-~/.qwenpaw/buddy/bin/qwenpaw-buddy-uninstall
-```
-
-## Protocol and Examples
-
-- Protocol: [docs/protocol.md](docs/protocol.md)
-- Compatibility layers: [docs/compatibility.md](docs/compatibility.md)
-- Publish checklist: [docs/publish-checklist.md](docs/publish-checklist.md)
-- Python agent demo: [examples/python_agent_demo.py](examples/python_agent_demo.py)
-- Claude Code compat demo: [examples/claude_code_compat_demo.py](examples/claude_code_compat_demo.py)
-- Claude Desktop Buddy compat demo: [examples/claude_desktop_buddy_demo.py](examples/claude_desktop_buddy_demo.py)
-- openclaw compat demo: [examples/openclaw_compat_demo.py](examples/openclaw_compat_demo.py)
-- QwenPaw compat demo: [examples/qwenpaw_compat_demo.py](examples/qwenpaw_compat_demo.py)
-- JSONL adapter demo: [examples/jsonl_demo.sh](examples/jsonl_demo.sh)
-- Wrapped command demo: [examples/wrapped_command_demo.sh](examples/wrapped_command_demo.sh)
-- Approval polling demo: [examples/approval_poll_demo.py](examples/approval_poll_demo.py)
-
-## Build APK
+## 构建
 
 ```sh
 ./build-buddy-apk.sh
+./build-autostart-apk.sh
 ```
 
-The built APK is written to:
+## License
 
-```text
-buddy-android/build/manual/buddy.apk
-```
-
-## Device Scripts
-
-Enable Wi-Fi ADB once over USB:
-
-```sh
-scripts/enable-wifi-adb.sh
-```
-
-Connect later over Wi-Fi:
-
-```sh
-scripts/connect-wifi-adb.sh 10.214.75.86
-```
-
-Start the optional OpenSSH service over Wi-Fi ADB:
-
-```sh
-scripts/start-ssh-over-adb.sh 10.214.75.86
-```
+[MIT](LICENSE)

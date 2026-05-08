@@ -51,7 +51,7 @@ wait for the next real Codex event.
 Useful environment variables:
 
 ```sh
-export BUDDY_HOST=10.214.75.86
+export BUDDY_HOST=<buddy-ip>
 export BUDDY_CODEX_THREAD_ID=019dafba-5428-7352-b77f-95c3a4db344a
 export BUDDY_CODEX_QUIET_DONE_SECONDS=20
 ./integrations/codex/start.sh
