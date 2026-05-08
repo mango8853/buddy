@@ -38,11 +38,50 @@ Still intentionally experimental:
 
 Device-specific root tasks, such as SSH or Wi-Fi ADB setup, live in `scripts/` and are not part of the APK.
 
-## Install On Device
+## Fresh Install
 
-The recommended device install flow is:
+In this section, "device" means the Android touch-screen device that will run the Buddy display app. For example, a USB-debuggable smart speaker or a small Android panel.
+
+For a fresh install, give your local agent this task:
+
+```text
+Install Buddy onto my Android device over USB.
+
+GitHub repository: https://github.com/mango8853/buddy.git
+
+Known inputs:
+- I have an Android touch device with USB debugging enabled.
+- The device is connected to this computer over USB.
+- If adb asks for authorization, tell me to approve it on the device.
+
+Please do:
+1. Clone the repository.
+2. Check or prepare build dependencies: git, python3, JDK 17, Android SDK platform 35, Android build-tools 35.0.0, and adb.
+3. Find the target device with adb. If more than one device is connected, ask me to choose one or use ADB_SERIAL.
+4. Run install-buddy-device.sh from the cloned repository to install buddy.apk and buddy-autostart.apk onto the Android device.
+5. Enable the autostart helper and launch Buddy once.
+6. Find the device wlan0 IP address and store it as BUDDY_HOST.
+7. Verify the device with: python3 bridge/buddy.py --host $BUDDY_HOST health
+8. Send one test message to the Buddy screen.
+9. Tell me the detected BUDDY_HOST and whether installation succeeded.
+```
+
+The command flow usually looks like this:
 
 ```sh
+git clone https://github.com/mango8853/buddy.git
+cd buddy
+
+# If adb is not in PATH:
+# export ADB=/path/to/adb
+#
+# If more than one adb device is connected:
+# export ADB_SERIAL=<adb-serial>
+#
+# If JDK / Android SDK are not in Buddy's local .tools directory:
+# export JAVA_HOME=/path/to/jdk17
+# export ANDROID_HOME=/path/to/android-sdk
+
 ./install-buddy-device.sh
 ```
 
@@ -50,12 +89,19 @@ This script:
 
 - builds `buddy.apk`
 - builds `buddy-autostart.apk`
-- installs both packages
+- installs both packages onto the adb-connected Android device
 - explicitly runs `pm enable com.codex.buddyautostart`
 - launches Buddy once
 
 So the boot helper is not only present in the manifest, but also left enabled on
 the target device by default.
+
+The script prints the detected `wlan0` IP candidates at the end. Use that address as `<buddy-ip>`:
+
+```sh
+export BUDDY_HOST=<buddy-ip>
+python3 bridge/buddy.py --host "$BUDDY_HOST" health
+```
 
 ## Send Events
 

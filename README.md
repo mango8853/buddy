@@ -49,11 +49,49 @@ Buddy 可以把一台带触控屏的小型 Android 设备，变成一个常驻�
 
 ## 快速开始
 
-### 1. 安装到设备
+这里的“设备”指那台要作为 Buddy 屏幕的小型 Android 设备，例如已经打开 USB 调试的小爱音箱。
+这里的“agent”指你正在使用的本地编码 agent，例如 Codex、Claude Code、QwenPaw、openclaw 或其他能执行 shell 命令的 agent。
 
-推荐直接用：
+如果你是全新安装，最推荐把下面这段任务直接发给你的 agent：
+
+```text
+请把 Buddy 安装到我通过 USB 连接的 Android 设备上。
+
+GitHub 仓库：https://github.com/mango8853/buddy.git
+
+已知条件：
+- 我有一台能 adb 的 Android 触控设备，已经打开 USB 调试。
+- 设备通过 USB 连接到这台电脑。
+- 如果 adb 弹出授权，请提醒我在设备上点允许。
+
+请你完成：
+1. clone 仓库。
+2. 准备或检查构建依赖：git、python3、JDK 17、Android SDK platform 35、Android build-tools 35.0.0、adb。
+3. 用 adb 找到目标设备；如果有多个设备，让我选择或使用 ADB_SERIAL。
+4. 运行仓库里的 install-buddy-device.sh，把 buddy.apk 和 buddy-autostart.apk 安装进这台 Android 设备。
+5. 启用 autostart helper，并拉起 Buddy。
+6. 找到设备 wlan0 的 IP 地址，记为 BUDDY_HOST。
+7. 用 python3 bridge/buddy.py --host $BUDDY_HOST health 验证 Buddy 服务可用。
+8. 发送一条测试消息到 Buddy 屏幕。
+9. 告诉我 BUDDY_HOST 是多少，以及安装是否成功。
+```
+
+agent 实际执行时，通常会是这条链路：
 
 ```sh
+git clone https://github.com/mango8853/buddy.git
+cd buddy
+
+# 如果你的电脑没有把 adb 放进 PATH，可以设置：
+# export ADB=/path/to/adb
+#
+# 如果有多个 adb 设备，可以设置：
+# export ADB_SERIAL=<adb-serial>
+#
+# 如果 JDK / Android SDK 不在默认位置，可以设置：
+# export JAVA_HOME=/path/to/jdk17
+# export ANDROID_HOME=/path/to/android-sdk
+
 ./install-buddy-device.sh
 ```
 
@@ -61,20 +99,27 @@ Buddy 可以把一台带触控屏的小型 Android 设备，变成一个常驻�
 
 - 构建 `buddy.apk`
 - 构建 `buddy-autostart.apk`
-- 安装两者
+- 安装两者到当前 adb 连接的 Android 设备
 - 启用 autostart helper
 - 拉起 Buddy 一次
+
+脚本结束后会打印 `wlan0` 的 IP 候选值。后续命令里的 `<buddy-ip>` 就是这个地址，例如：
+
+```sh
+export BUDDY_HOST=<buddy-ip>
+python3 bridge/buddy.py --host "$BUDDY_HOST" health
+```
 
 ### 2. 发送一个最简单的事件
 
 ```sh
-python3 bridge/buddy.py --host <buddy-ip> message "hello" --title "Buddy"
+python3 bridge/buddy.py --host "$BUDDY_HOST" message "hello" --title "Buddy"
 ```
 
 ### 3. 启动本地 bridge
 
 ```sh
-python3 bridge/buddy.py --host <buddy-ip> serve
+python3 bridge/buddy.py --host "$BUDDY_HOST" serve
 ```
 
 然后其他工具就可以调用：

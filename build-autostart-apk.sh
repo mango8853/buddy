@@ -2,8 +2,8 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-JAVA_HOME="$ROOT/.tools/jdk17"
-ANDROID_HOME="$ROOT/.tools/android-sdk"
+JAVA_HOME="${JAVA_HOME:-$ROOT/.tools/jdk17}"
+ANDROID_HOME="${ANDROID_HOME:-$ROOT/.tools/android-sdk}"
 BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
 ANDROID_JAR="$ANDROID_HOME/platforms/android-35/android.jar"
 APP="$ROOT/buddy-autostart"
@@ -15,6 +15,23 @@ KEYSTORE="$ROOT/.tools/buddy-debug.jks"
 
 export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$BUILD_TOOLS:$PATH"
+
+if [ ! -x "$JAVA_HOME/bin/javac" ]; then
+  echo "[buddy] javac not found at $JAVA_HOME/bin/javac. Set JAVA_HOME to a JDK 17 installation." >&2
+  exit 1
+fi
+
+if [ ! -f "$ANDROID_JAR" ]; then
+  echo "[buddy] Android platform android-35 not found under $ANDROID_HOME. Set ANDROID_HOME or install Android SDK platform 35." >&2
+  exit 1
+fi
+
+for tool in aapt2 d8 zipalign apksigner; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "[buddy] $tool not found. Install Android build-tools 35.0.0 or set ANDROID_HOME." >&2
+    exit 1
+  fi
+done
 
 rm -rf "$OUT"
 mkdir -p "$OUT/classes" "$OUT/generated" "$OUT/compiled" "$OUT/dex"
