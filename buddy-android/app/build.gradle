@@ -1,0 +1,16 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.codex.buddy"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.codex.buddy"
+        minSdk 23
+        targetSdk 27
+        versionCode 1
+        versionName "0.1.0"
+    }
+}

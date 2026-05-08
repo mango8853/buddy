@@ -1,0 +1,45 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local caches and extracted reverse-engineering artifacts
+.tmp/
+.tools/
+hatch-runs/
+inspect-busybox/
+inspect-busybox2/
+
+# Android build outputs
+buddy-android/build/
+buddy-autostart/build/
+*.apk
+*.apk.idsig
+
+# Downloaded SDK / platform tooling
+platform-tools/
+platform-tools-latest-darwin.zip
+Packages.gz
+
+# Local entware / opkg payloads
+entware-ipk/
+opkg.armv7
+
+# Device-local credentials and state
+buddy_ssh_key
+buddy_ssh_key.pub
+known_hosts_buddy
+xiaoai-group
+xiaoai-passwd
+xiaoai-shadow
+xiaoai-shells
+
+# Imported custom pets are user-local content
+pets/custom/registry.json
+pets/custom/*.webp
+
+# Local captures and demo media kept during iteration
+Camera_xhs_*.mp4
+buddy-*.png
+qwenpaw-*.png

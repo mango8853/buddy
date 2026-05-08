@@ -1,0 +1,2573 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Buddy</title>
+  <style>
+    :root {
+      --bg: #cfcfcf;
+      --text: #171717;
+      --muted: rgba(23, 23, 23, .62);
+      --accent: #58bdec;
+      --approve: #63ca69;
+      --deny: #fb513d;
+      --card: #ffffff;
+      --shadow: 0 10px 22px rgba(0, 0, 0, .12);
+      --radius: 32px;
+      --surface-radius: 32px;
+      --pet-w: 176px;
+      --pet-h: 152px;
+      --image-rail-w: 160px;
+      --image-rail-center: 80px;
+      --stream-rail-w: 148px;
+      --stream-rail-center: 82px;
+    }
+    * { box-sizing: border-box; }
+    ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans CJK SC", sans-serif;
+      letter-spacing: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    body {
+      position: relative;
+      touch-action: manipulation;
+    }
+    .app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 14%, rgba(255,255,255,.28), transparent 26%),
+        linear-gradient(180deg, #d5d5d5, #c9c9c9);
+    }
+    .app.decision { background: #d7d7d7; }
+    .app.decision.decision-stream-overlay { background: transparent; }
+    .app.image {
+      background: linear-gradient(180deg, #fbfbfd, #f1f2f6);
+      color: #111111;
+    }
+    .app.video {
+      background: linear-gradient(180deg, #fbfbfd, #f1f2f6);
+      color: #111111;
+    }
+    .app.audio {
+      background: linear-gradient(180deg, #fbfbfd, #f1f2f6);
+      color: #111111;
+    }
+    .app.stream {
+      background: linear-gradient(180deg, #fbfbfd, #f1f2f6);
+      color: #111111;
+    }
+    .app.image.fit-cover {
+      background:
+        radial-gradient(circle at 76% 30%, rgba(126, 146, 255, .10), transparent 28%),
+        radial-gradient(circle at 18% 82%, rgba(255, 146, 174, .08), transparent 26%),
+        linear-gradient(180deg, #fdfdff, #eef0f6);
+    }
+    .app.video.fit-cover {
+      background:
+        radial-gradient(circle at 76% 30%, rgba(126, 146, 255, .10), transparent 28%),
+        radial-gradient(circle at 18% 82%, rgba(255, 146, 174, .08), transparent 26%),
+        linear-gradient(180deg, #fdfdff, #eef0f6);
+    }
+    .app.audio.fit-cover {
+      background:
+        radial-gradient(circle at 76% 30%, rgba(126, 146, 255, .10), transparent 28%),
+        radial-gradient(circle at 18% 82%, rgba(255, 146, 174, .08), transparent 26%),
+        linear-gradient(180deg, #fdfdff, #eef0f6);
+    }
+    .app.image .media-layer {
+      background: transparent;
+    }
+    .app.video .media-layer {
+      background: transparent;
+    }
+    .app.audio .media-layer {
+      background: transparent;
+    }
+    .app.stream .media-layer {
+      background: transparent;
+    }
+    .app.decision.decision-stream-overlay .media-layer {
+      opacity: 1;
+      transition: opacity .22s ease;
+      filter: none;
+    }
+    .hud {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      top: 18px;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      pointer-events: none;
+    }
+    .app.decision .hud { display: none; }
+    .app.image .hud { display: none; }
+    .app.video .hud { display: none; }
+    .app.audio .hud { display: none; }
+    .app.stream .hud { display: none; }
+    .clock {
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(23,23,23,.72);
+    }
+    .chip {
+      padding: 7px 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.52);
+      color: #164f5a;
+      font-size: 15px;
+      font-weight: 800;
+      text-transform: lowercase;
+    }
+    .title-wrap {
+      position: absolute;
+      left: 34px;
+      top: 62px;
+      right: 34px;
+      z-index: 8;
+      pointer-events: none;
+    }
+    .title-wrap.hidden { display: none; }
+    .title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.08;
+      font-weight: 900;
+    }
+    .body {
+      margin-top: 12px;
+      font-size: 17px;
+      line-height: 1.34;
+      color: var(--muted);
+      white-space: pre-wrap;
+      max-width: 620px;
+    }
+    .app.decision .title-wrap {
+      left: 34px;
+      top: 34px;
+      right: 34px;
+      width: auto;
+      max-width: none;
+    }
+    .app.decision.decision-stream-overlay .title-wrap {
+      display: none;
+    }
+    .app.decision .title {
+      font-size: 25px;
+      line-height: 1.08;
+      max-width: 540px;
+    }
+    .app.decision .body {
+      font-size: 17px;
+      line-height: 1.34;
+      max-width: 560px;
+    }
+    .app.decision.decision-stream-overlay .title {
+      font-size: 20px;
+      line-height: 1.1;
+      max-width: 500px;
+      color: rgba(255,255,255,.95);
+    }
+    .app.decision.decision-stream-overlay .body {
+      font-size: 14px;
+      line-height: 1.34;
+      max-width: 520px;
+      color: rgba(255,255,255,.74);
+    }
+    .app.image .title-wrap {
+      left: 0;
+      top: 58px;
+      right: auto;
+      width: var(--image-rail-w);
+      min-width: 0;
+      max-width: none;
+      transform: none;
+      z-index: 10;
+      text-align: center;
+    }
+    .app.video .title-wrap {
+      left: 0;
+      top: 58px;
+      right: auto;
+      width: var(--image-rail-w);
+      min-width: 0;
+      max-width: none;
+      transform: none;
+      z-index: 10;
+      text-align: center;
+    }
+    .app.audio .title-wrap {
+      left: 0;
+      top: 58px;
+      right: auto;
+      width: var(--image-rail-w);
+      padding: 0 12px;
+      min-width: 0;
+      max-width: none;
+      transform: none;
+      z-index: 10;
+      text-align: center;
+    }
+    .app.stream .title-wrap {
+      left: 0;
+      top: 58px;
+      right: auto;
+      width: var(--stream-rail-w);
+      padding: 0 12px;
+      min-width: 0;
+      max-width: none;
+      transform: none;
+      z-index: 10;
+      text-align: center;
+    }
+    .app.image .title {
+      color: #111111;
+      text-align: center;
+    }
+    .app.video .title {
+      color: #111111;
+      text-align: center;
+    }
+    .app.audio .title {
+      color: #111111;
+      text-align: center;
+    }
+    .app.stream .title {
+      color: #111111;
+      text-align: center;
+    }
+    .app.image .body {
+      color: rgba(17, 17, 17, .82);
+      text-align: center;
+    }
+    .app.video .body {
+      color: rgba(17, 17, 17, .82);
+      text-align: center;
+    }
+    .app.audio .body {
+      color: rgba(17, 17, 17, .82);
+      text-align: center;
+    }
+    .app.stream .body {
+      color: rgba(17, 17, 17, .82);
+      text-align: center;
+    }
+    .app.image.fit-cover .title,
+    .app.image.fit-cover .body {
+      color: #111111;
+    }
+    .app.video.fit-cover .title,
+    .app.video.fit-cover .body {
+      color: #111111;
+    }
+    .app.audio.fit-cover .title,
+    .app.audio.fit-cover .body {
+      color: #111111;
+    }
+    .pet-card {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: var(--pet-w);
+      height: var(--pet-h);
+      margin-left: calc(var(--pet-w) / -2);
+      margin-top: calc(var(--pet-h) / -2);
+      border-radius: var(--radius);
+      background: transparent;
+      box-shadow: none;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      z-index: 24;
+      will-change: transform;
+      transform: translate3d(0, 0, 0);
+      transition: transform .18s cubic-bezier(.2, .8, .2, 1), box-shadow .18s ease;
+    }
+    .app.image .title {
+      font-size: 22px;
+      line-height: 1.04;
+      max-width: none;
+    }
+    .app.video .title {
+      font-size: 22px;
+      line-height: 1.04;
+      max-width: none;
+    }
+    .app.audio .title {
+      font-size: 15px;
+      line-height: 1.1;
+      max-width: none;
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    .app.stream .title {
+      font-size: 18px;
+      line-height: 1.08;
+      max-width: none;
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    .app.image .body {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.32;
+      max-width: none;
+    }
+    .app.video .body {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.32;
+      max-width: none;
+    }
+    .app.audio .body {
+      margin-top: 10px;
+      font-size: 11px;
+      line-height: 1.3;
+      max-width: none;
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    .app.stream .body {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.28;
+      max-width: none;
+      overflow-wrap: break-word;
+      word-break: normal;
+    }
+    .pet-sprite {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      will-change: transform;
+    }
+    .pet-sprite.codex-avatar {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background-repeat: no-repeat;
+      background-size: 800% 900%;
+      image-rendering: pixelated;
+      transform-origin: 50% 78%;
+    }
+    .pet-card.image-pet {
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+    }
+    .pet-card.sprite-pet {
+      background: transparent;
+      box-shadow: none;
+      overflow: visible;
+    }
+    .pet-card.dragging {
+      transition: none !important;
+      box-shadow: none;
+    }
+    .pet-card.ready-left {
+      box-shadow: none;
+    }
+    .pet-card.ready-right {
+      box-shadow: none;
+    }
+    .pet-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .12));
+    }
+    .app.image .pet-card {
+      left: var(--image-rail-center);
+      top: 79%;
+      width: 104px;
+      height: 88px;
+      margin-left: -52px;
+      margin-top: -44px;
+    }
+    .app.image .pet-card img {
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .14));
+    }
+    .app.video .pet-card {
+      left: var(--image-rail-center);
+      top: 79%;
+      width: 104px;
+      height: 88px;
+      margin-left: -52px;
+      margin-top: -44px;
+    }
+    .app.video .pet-card img {
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .14));
+    }
+    .app.audio .pet-card {
+      left: var(--image-rail-center);
+      top: 79%;
+      width: 104px;
+      height: 88px;
+      margin-left: -52px;
+      margin-top: -44px;
+      display: block;
+    }
+    .app.audio .pet-card img {
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .14));
+    }
+    .app.stream .pet-card {
+      left: var(--stream-rail-center);
+      top: 77%;
+      width: 144px;
+      height: 122px;
+      margin-left: -72px;
+      margin-top: -61px;
+      display: block;
+    }
+    .app.stream .pet-card img {
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .14));
+    }
+    .app.decision.decision-stream-overlay .pet-card {
+      left: var(--stream-rail-center);
+      top: 50%;
+      width: 144px;
+      height: 122px;
+      margin-left: -72px;
+      margin-top: -61px;
+      z-index: 29;
+      display: block;
+    }
+    .app.decision.decision-stream-overlay .pet-card img {
+      filter: drop-shadow(0 10px 16px rgba(0, 0, 0, .14));
+    }
+    .pet-fallback {
+      width: 96px;
+      height: 82px;
+      border-radius: 24px;
+      background: #1eb3a7;
+      position: relative;
+    }
+    .pet-fallback:before,
+    .pet-fallback:after {
+      content: "";
+      position: absolute;
+      top: -24px;
+      width: 24px;
+      height: 44px;
+      border-radius: 50%;
+      background: #f5f2e8;
+    }
+    .pet-fallback:before { left: 17px; transform: rotate(-12deg); }
+    .pet-fallback:after { right: 17px; transform: rotate(12deg); }
+    .pet-face {
+      position: absolute;
+      inset: 0;
+    }
+    .pet-face:before,
+    .pet-face:after {
+      content: "";
+      position: absolute;
+      top: 31px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #111;
+    }
+    .pet-face:before { left: 24px; }
+    .pet-face:after { right: 24px; }
+    .pet-mouth {
+      position: absolute;
+      left: 26px;
+      right: 26px;
+      bottom: 22px;
+      height: 20px;
+      border-bottom: 4px solid #111;
+      border-radius: 0 0 50% 50%;
+    }
+    .media-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      display: none;
+      z-index: 4;
+      overflow: hidden;
+      background: #c9c9c9;
+    }
+    .media-layer.visible { display: block; }
+    .media-layer img,
+    .media-layer video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #101214;
+    }
+    .image-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+    }
+    .image-frame {
+      position: absolute;
+      left: var(--image-rail-w);
+      width: auto;
+      height: 100vh;
+      right: 0;
+      top: 0;
+      transform: none;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .video-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+    }
+    .video-frame {
+      position: absolute;
+      left: var(--image-rail-w);
+      width: auto;
+      height: 100vh;
+      right: 0;
+      top: 0;
+      transform: none;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .app.video.fit-cover .video-frame {
+      left: var(--image-rail-w);
+      width: auto;
+      height: 100vh;
+      right: 0;
+      top: 0;
+      transform: none;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    .app.image.fit-cover .image-frame {
+      left: var(--image-rail-w);
+      width: auto;
+      height: 100vh;
+      right: 0;
+      top: 0;
+      transform: none;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    .image-frame img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+      background: #ffffff;
+      opacity: 0;
+      transform: scale(.985);
+      transition: opacity .28s ease, transform .38s cubic-bezier(.2, .8, .2, 1);
+    }
+    .image-frame img.ready {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .app.image.fit-cover .image-frame img {
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+      background: #ffffff;
+    }
+    .video-frame video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+      background: #ffffff;
+      opacity: 0;
+      transform: scale(.985);
+      transition: opacity .28s ease, transform .38s cubic-bezier(.2, .8, .2, 1);
+    }
+    .video-frame video.ready {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .app.video.fit-cover .video-frame video {
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+      background: #ffffff;
+    }
+    .video-hint {
+      position: absolute;
+      left: calc(var(--image-rail-w) + 18px);
+      bottom: 18px;
+      z-index: 6;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .86);
+      color: rgba(17, 17, 17, .72);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity .22s ease, transform .22s ease;
+      pointer-events: none;
+    }
+    .video-hint.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .stream-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+    }
+    .stream-frame {
+      position: absolute;
+      left: var(--stream-rail-w);
+      right: 0;
+      top: 0;
+      bottom: 0;
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+      background: linear-gradient(180deg, #0a0f0c, #09110b);
+      box-shadow:
+        inset 1px 0 0 rgba(255, 255, 255, .04),
+        inset 0 1px 0 rgba(255, 255, 255, .03);
+      overflow: hidden;
+    }
+    .stream-panel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(circle at 84% 16%, rgba(31, 116, 59, .16), rgba(31, 116, 59, 0) 24%),
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+    }
+    .stream-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: block;
+      padding: 18px 22px 0 22px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+    }
+    .stream-log {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      overflow: visible;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 14px/1.52 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      color: #8cf7a2;
+      background: transparent;
+      text-shadow: 0 0 7px rgba(64, 212, 102, .18);
+    }
+    .stream-anchor {
+      display: block;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .stream-bottom-gap {
+      display: block;
+      width: 1px;
+      height: 36px;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .stream-cursor {
+      display: inline-block;
+      width: 7px;
+      height: 15px;
+      margin-left: 2px;
+      vertical-align: -2px;
+      border-radius: 2px;
+      background: #7af08f;
+      animation: streamBlink 1s steps(1) infinite;
+    }
+    @keyframes streamBlink {
+      0%, 50% { opacity: 1; }
+      50.01%, 100% { opacity: 0; }
+    }
+    .audio-stage {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+    }
+    .audio-panel {
+      position: absolute;
+      left: var(--image-rail-w);
+      right: 0;
+      top: 0;
+      bottom: 0;
+      overflow: hidden;
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+      background: #ffffff;
+    }
+    .audio-deck {
+      position: absolute;
+      left: 34px;
+      right: 34px;
+      top: 20px;
+      bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .audio-heading {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 12px;
+      text-align: center;
+      color: rgba(17, 17, 17, .74);
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .audio-progress-shell {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 78%;
+      max-width: 450px;
+      min-width: 260px;
+      height: 34px;
+      margin-top: -30px;
+      transform: translate3d(-50%, 0, 0);
+    }
+    .audio-progress-track {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 15px;
+      height: 2px;
+      background: rgba(17, 17, 17, .22);
+    }
+    .audio-progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0%;
+      height: 2px;
+      background: rgba(17, 17, 17, .82);
+    }
+    .audio-progress-knob {
+      position: absolute;
+      left: 50%;
+      top: 16px;
+      width: 8px;
+      height: 8px;
+      margin-left: -4px;
+      margin-top: -4px;
+      border-radius: 50%;
+      background: #161616;
+      transform: translate3d(-50%, 0, 0);
+    }
+    .audio-times {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 21px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(17, 17, 17, .62);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .audio-controls {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + 58px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 30px;
+      transform: translateX(-50%);
+    }
+    .audio-control {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin: 0;
+      outline: none;
+      color: #1b1b1b;
+    }
+    .audio-control:active {
+      opacity: .72;
+    }
+    .audio-control.prev:before,
+    .audio-control.prev:after,
+    .audio-control.next:before,
+    .audio-control.next:after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 0;
+      height: 0;
+      margin-top: -11px;
+      border-top: 11px solid transparent;
+      border-bottom: 11px solid transparent;
+    }
+    .audio-control.prev:before {
+      left: 7px;
+      border-right: 18px solid #1b1b1b;
+    }
+    .audio-control.prev:after {
+      left: 22px;
+      border-right: 18px solid #1b1b1b;
+    }
+    .audio-control.next:before {
+      right: 7px;
+      border-left: 18px solid #1b1b1b;
+    }
+    .audio-control.next:after {
+      right: 22px;
+      border-left: 18px solid #1b1b1b;
+    }
+    .audio-control.playpause:before,
+    .audio-control.playpause:after,
+    .audio-control.playpause.is-paused span {
+      content: "";
+      position: absolute;
+      top: 50%;
+      margin-top: -16px;
+    }
+    .audio-control.playpause:before {
+      left: 14px;
+      width: 8px;
+      height: 32px;
+      background: #1b1b1b;
+    }
+    .audio-control.playpause:after {
+      right: 14px;
+      width: 8px;
+      height: 32px;
+      background: #1b1b1b;
+    }
+    .audio-control.playpause span {
+      display: none;
+    }
+    .audio-control.playpause.is-paused:before,
+    .audio-control.playpause.is-paused:after {
+      display: none;
+    }
+    .audio-control.playpause.is-paused span {
+      display: block;
+      left: 18px;
+      width: 0;
+      height: 0;
+      border-top: 16px solid transparent;
+      border-bottom: 16px solid transparent;
+      border-left: 24px solid #1b1b1b;
+    }
+    .audio-loop-badge {
+      position: absolute;
+      right: 18px;
+      bottom: 14px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(17,17,17,.05);
+      color: rgba(17,17,17,.54);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .htmlbox {
+      width: 100%;
+      height: 100%;
+      padding: 24px 28px;
+      overflow: hidden;
+      background: #ffffff;
+      color: #171717;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+    .panel {
+      position: absolute;
+      z-index: 5;
+      display: none;
+      background: #56bce9;
+      color: #0d0d0d;
+      overflow: hidden;
+      padding: 28px;
+    }
+    .panel.visible { display: block; }
+    .panel.right {
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 60%;
+      border-radius: var(--surface-radius) 0 0 var(--surface-radius);
+    }
+    .panel.bottom {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 44%;
+      padding-top: 26px;
+      border-radius: var(--surface-radius) var(--surface-radius) 0 0;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 27px;
+      line-height: 1.1;
+    }
+    .decision-zone {
+      position: absolute;
+      left: 8px;
+      width: calc(var(--stream-rail-w) - 16px);
+      height: 64px;
+      border: 0;
+      border-radius: var(--surface-radius);
+      display: none;
+      z-index: 28;
+      overflow: hidden;
+      transition: transform .14s ease, filter .14s ease, opacity .18s ease;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, .06);
+    }
+    .decision-zone.left {
+      top: 8px;
+      background: linear-gradient(180deg, #f68d8d, #f47c7c);
+    }
+    .decision-zone.right {
+      bottom: 8px;
+      background: linear-gradient(180deg, #d3efcf, #bce4b7);
+    }
+    .decision-zone .icon {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 46px;
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans CJK SC", sans-serif;
+      background: transparent;
+    }
+    .decision-zone .label {
+      display: none;
+    }
+    .decision-zone.left .icon {
+      color: #ff2323;
+    }
+    .decision-zone.right .icon {
+      color: #1d9d12;
+    }
+    .decision-zone.active {
+      filter: brightness(1.03) saturate(1.04);
+      transform: scale(1.03);
+    }
+    .decision-hint {
+      display: none;
+    }
+    .decision-burst {
+      position: absolute;
+      width: 240vmax;
+      height: 240vmax;
+      bottom: -120vmax;
+      border-radius: 50%;
+      z-index: 18;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.02);
+    }
+    .decision-burst.left {
+      left: -120vmax;
+      transform-origin: left bottom;
+    }
+    .decision-burst.right {
+      right: -120vmax;
+      transform-origin: right bottom;
+    }
+    .decision-burst.approve {
+      background: #63ca69;
+    }
+    .decision-burst.deny {
+      background: #fb513d;
+    }
+    .decision-burst.run {
+      opacity: 1;
+      animation: burstExpand .92s cubic-bezier(.18, .88, .18, 1) forwards;
+    }
+    @keyframes burstExpand {
+      0% {
+        opacity: .98;
+        transform: scale(0.02);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1.08);
+      }
+    }
+    .toast {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      bottom: 16px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(16, 18, 20, .76);
+      color: #f6f3ec;
+      font-size: 15px;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="media-layer" id="mediaLayer"></div>
+    <div class="panel" id="panel"></div>
+    <div class="decision-zone left" id="zoneLeft"><div class="icon">✓</div><div class="label" id="zoneLeftLabel">确认</div></div>
+    <div class="decision-zone right" id="zoneRight"><div class="icon">×</div><div class="label" id="zoneRightLabel">拒绝</div></div>
+    <div class="decision-burst left approve" id="burstLeft"></div>
+    <div class="decision-burst right deny" id="burstRight"></div>
+
+    <div class="hud">
+      <div class="clock" id="clock">--:--</div>
+      <div class="chip" id="chip">idle</div>
+    </div>
+
+    <div class="title-wrap" id="titleWrap">
+      <h1 class="title" id="title">Ready</h1>
+      <div class="body" id="body"></div>
+    </div>
+
+    <div class="pet-card" id="petCard">
+      <div class="pet-fallback" id="petFallback">
+        <div class="pet-face"></div>
+        <div class="pet-mouth"></div>
+      </div>
+    </div>
+
+    <div class="decision-hint" id="decisionHint">拖动卡片到左右角落</div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script>
+    const DEFAULT_PET_ID = "codex";
+    const DEFAULT_PET_URL = "";
+    const AGENT_DEFAULT_PETS = {
+      "agent": "stacky",
+      "claude": "dewey",
+      "claude-code": "dewey",
+      "cli": "stacky",
+      "codex": "codex",
+      "openclaw": "claw",
+      "qwenpaw": "seedy",
+      "shell": "stacky"
+    };
+    const BUILTIN_PETS = {
+      "bsod": { id: "bsod", displayName: "BSOD", spritesheetUrl: "file:///android_asset/bsod-spritesheet.webp" },
+      "claw": { id: "claw", displayName: "Claw", spritesheetUrl: "file:///android_asset/claw-spritesheet.webp" },
+      "codex": { id: "codex", displayName: "Codex", spritesheetUrl: "file:///android_asset/codex-spritesheet.webp" },
+      "dewey": { id: "dewey", displayName: "Dewey", spritesheetUrl: "file:///android_asset/dewey-spritesheet.webp" },
+      "fireball": { id: "fireball", displayName: "Fireball", spritesheetUrl: "file:///android_asset/fireball-spritesheet.webp" },
+      "null-signal": { id: "null-signal", displayName: "Null Signal", spritesheetUrl: "file:///android_asset/null-signal-spritesheet.webp" },
+      "rocky": { id: "rocky", displayName: "Rocky", spritesheetUrl: "file:///android_asset/rocky-spritesheet.webp" },
+      "seedy": { id: "seedy", displayName: "Seedy", spritesheetUrl: "file:///android_asset/seedy-spritesheet.webp" },
+      "stacky": { id: "stacky", displayName: "Stacky", spritesheetUrl: "file:///android_asset/stacky-spritesheet.webp" }
+    };
+    const DEFAULT_IDLE_RETURN_MS = 10000;
+    const PET_COLS = 8;
+    const PET_ROWS = 9;
+    const PET_IDLE_BASE = [
+      { rowIndex: 0, columnIndex: 0, frameDurationMs: 280 },
+      { rowIndex: 0, columnIndex: 1, frameDurationMs: 110 },
+      { rowIndex: 0, columnIndex: 2, frameDurationMs: 110 },
+      { rowIndex: 0, columnIndex: 3, frameDurationMs: 140 },
+      { rowIndex: 0, columnIndex: 4, frameDurationMs: 140 },
+      { rowIndex: 0, columnIndex: 5, frameDurationMs: 320 }
+    ];
+    const PET_IDLE = PET_IDLE_BASE.map(function(frame) {
+      return {
+        rowIndex: frame.rowIndex,
+        columnIndex: frame.columnIndex,
+        frameDurationMs: frame.frameDurationMs * 6
+      };
+    });
+    const PET_ANIMATIONS = {
+      failed: buildPetSequence(5, 8, 140, 240),
+      idle: PET_IDLE_BASE,
+      jumping: buildPetSequence(4, 5, 140, 280),
+      review: buildPetSequence(8, 6, 150, 280),
+      running: buildPetSequence(7, 6, 120, 220),
+      "running-left": buildPetSequence(2, 8, 120, 220),
+      "running-right": buildPetSequence(1, 8, 120, 220),
+      waving: buildPetSequence(3, 4, 140, 280),
+      waiting: buildPetSequence(6, 6, 150, 260)
+    };
+    const state = {
+      mood: "idle",
+      title: "Ready",
+      body: "",
+      mode: "idle",
+      approvalId: null,
+      media: null,
+      panel: null,
+      agentKind: "",
+      petId: DEFAULT_PET_ID,
+      petSpritesheetUrl: "",
+      petUrl: "",
+      sceneActions: null,
+      idleTimeoutMs: 0,
+      audioUi: null,
+      streamUi: null,
+      resumeScene: null,
+      decisionOverlayStream: false,
+      petState: "idle"
+    };
+    const selectedPet = {
+      id: DEFAULT_PET_ID,
+      agentKind: "",
+      spritesheetUrl: "",
+      url: DEFAULT_PET_URL
+    };
+
+    const app = document.getElementById("app");
+    const clockEl = document.getElementById("clock");
+    const chipEl = document.getElementById("chip");
+    const titleWrapEl = document.getElementById("titleWrap");
+    const titleEl = document.getElementById("title");
+    const bodyEl = document.getElementById("body");
+    const mediaLayerEl = document.getElementById("mediaLayer");
+    const panelEl = document.getElementById("panel");
+    const petCardEl = document.getElementById("petCard");
+    const petFallbackEl = document.getElementById("petFallback");
+    const zoneLeftEl = document.getElementById("zoneLeft");
+    const zoneRightEl = document.getElementById("zoneRight");
+    const zoneLeftLabelEl = document.getElementById("zoneLeftLabel");
+    const zoneRightLabelEl = document.getElementById("zoneRightLabel");
+    const burstLeftEl = document.getElementById("burstLeft");
+    const burstRightEl = document.getElementById("burstRight");
+    const toastEl = document.getElementById("toast");
+
+    const drag = {
+      active: false,
+      startX: 0,
+      startY: 0,
+      dx: 0,
+      dy: 0,
+      raf: 0,
+      activeSide: ""
+    };
+    const imageLayout = {
+      railW: 160,
+      railCenter: 80
+    };
+    const petAnimation = {
+      timer: 0,
+      state: "",
+      frameIndex: 0,
+      loopStartIndex: 0,
+      frames: []
+    };
+    let idleReturnTimer = 0;
+    let lastDoneToneAt = 0;
+    let lastWaitingToneAt = 0;
+
+    function buildPetSequence(rowIndex, frameCount, frameDurationMs, finalFrameDurationMs) {
+      return Array.from({ length: frameCount }, function(_, columnIndex) {
+        return {
+          rowIndex: rowIndex,
+          columnIndex: columnIndex,
+          frameDurationMs: columnIndex === frameCount - 1 ? finalFrameDurationMs : frameDurationMs
+        };
+      });
+    }
+
+    function send(payload) {
+      if (window.Buddy && window.Buddy.send) {
+        window.Buddy.send(JSON.stringify(payload));
+      }
+    }
+
+    function showToast(text) {
+      toastEl.textContent = text;
+      toastEl.classList.add("visible");
+      setTimeout(() => toastEl.classList.remove("visible"), 1400);
+    }
+
+    function stopAudio() {
+      if (window.Buddy && window.Buddy.stopAudio) {
+        window.Buddy.stopAudio();
+      }
+    }
+
+    function pauseAudio() {
+      if (window.Buddy && window.Buddy.pauseAudio) {
+        window.Buddy.pauseAudio();
+      }
+    }
+
+    function resumeAudio() {
+      if (window.Buddy && window.Buddy.resumeAudio) {
+        window.Buddy.resumeAudio();
+      }
+    }
+
+    function restartAudio() {
+      if (window.Buddy && window.Buddy.restartAudio) {
+        window.Buddy.restartAudio();
+      }
+    }
+
+    function readAudioState() {
+      if (window.Buddy && window.Buddy.getAudioState) {
+        try {
+          return JSON.parse(window.Buddy.getAudioState());
+        } catch (err) {
+          return null;
+        }
+      }
+      return null;
+    }
+
+    function playAudio(url, loop) {
+      if (!window.Buddy || !url) return;
+      if (window.Buddy.playAudioWithLoop) {
+        window.Buddy.playAudioWithLoop(url, Boolean(loop));
+      } else if (window.Buddy.playAudio) {
+        window.Buddy.playAudio(url);
+      }
+    }
+
+    function absolutize(url) {
+      if (!url) return "";
+      if (/^https?:\/\//.test(url) || /^file:/.test(url) || /^data:/.test(url)) return url;
+      return "http://127.0.0.1:8787" + url;
+    }
+
+    function normalizeBuiltInPetId(value) {
+      const petId = String(value || "").trim();
+      return BUILTIN_PETS[petId] ? petId : DEFAULT_PET_ID;
+    }
+
+    function normalizePetId(value, fallbackId) {
+      const petId = String(value || "").trim();
+      return petId || fallbackId || DEFAULT_PET_ID;
+    }
+
+    function normalizeAgentKind(value, fallbackValue) {
+      const raw = String(value || fallbackValue || "").trim().toLowerCase();
+      if (!raw) return "";
+      return raw.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "");
+    }
+
+    function defaultPetIdForAgentKind(agentKind) {
+      const normalized = normalizeAgentKind(agentKind, "");
+      return AGENT_DEFAULT_PETS[normalized] || "";
+    }
+
+    function inferAgentKindFromLabel(value) {
+      const text = String(value || "").trim().toLowerCase();
+      if (!text) return "";
+      if (text.includes("qwenpaw")) return "qwenpaw";
+      if (text.includes("openclaw")) return "openclaw";
+      if (text.includes("claude code")) return "claude-code";
+      if (text === "claude" || text.includes(" claude")) return "claude";
+      if (text.includes("codex")) return "codex";
+      if (text.includes("shell") || text.includes("terminal") || text.includes("cli")) return "cli";
+      return "";
+    }
+
+    function resolveEventAgentKind(event, fallbackValue) {
+      return normalizeAgentKind(
+        (event && event.agentKind)
+          || (event && event.source)
+          || inferAgentKindFromLabel((event && event.title) || "")
+          || inferAgentKindFromLabel((event && event.body) || ""),
+        fallbackValue || state.agentKind || ""
+      );
+    }
+
+    function resolveBuiltInPet(petId) {
+      return BUILTIN_PETS[normalizeBuiltInPetId(petId)] || BUILTIN_PETS[DEFAULT_PET_ID];
+    }
+
+    function petSelectionFromEvent(event) {
+      const pet = event && event.pet ? event.pet : {};
+      const imageUrl = absolutize((event && event.petUrl) || pet.url || "");
+      const spritesheetUrl = absolutize(
+        (event && event.petSpritesheetUrl) || pet.spritesheetUrl || pet.spritesheetDataUrl || ""
+      );
+      const explicitPetId = normalizePetId((event && event.petId) || pet.id || "", "");
+      const eventAgentKind = resolveEventAgentKind(event, "");
+      const mappedPetId = defaultPetIdForAgentKind(eventAgentKind);
+      const fallbackPetId = normalizePetId(selectedPet.id, DEFAULT_PET_ID);
+      const rawPetId = explicitPetId || mappedPetId || fallbackPetId;
+      const petId = BUILTIN_PETS[rawPetId] ? rawPetId : normalizeBuiltInPetId(fallbackPetId);
+      if (imageUrl) {
+        return { id: rawPetId, spritesheetUrl: "", url: imageUrl };
+      }
+      if (spritesheetUrl) {
+        return { id: rawPetId, spritesheetUrl: spritesheetUrl, url: "" };
+      }
+      return { id: petId, spritesheetUrl: "", url: "" };
+    }
+
+    function applyPetSelection(selection, persistDefault) {
+      const next = selection || { id: DEFAULT_PET_ID, spritesheetUrl: "", url: DEFAULT_PET_URL };
+      state.petId = next.id || DEFAULT_PET_ID;
+      state.petSpritesheetUrl = next.spritesheetUrl || "";
+      state.petUrl = next.url || "";
+      if (persistDefault) {
+        selectedPet.id = state.petId;
+        selectedPet.agentKind = "";
+        selectedPet.spritesheetUrl = state.petSpritesheetUrl;
+        selectedPet.url = state.petUrl;
+      }
+    }
+
+    function restoreSelectedPet() {
+      applyPetSelection(selectedPet, false);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, function(ch) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
+      });
+    }
+
+    function formatTime(ms) {
+      const totalSec = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+      const min = Math.floor(totalSec / 60);
+      const sec = totalSec % 60;
+      return min + ":" + (sec < 10 ? "0" + sec : sec);
+    }
+
+    function formatStreamLabel(value) {
+      const text = String(value || "").trim();
+      if (!text) return "Thinking";
+      return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+
+    function isCompletionStatus(value) {
+      const text = String(value || "").toLowerCase();
+      return text.indexOf("done") >= 0
+        || text.indexOf("success") >= 0
+        || text.indexOf("review") >= 0
+        || text.indexOf("ready") >= 0;
+    }
+
+    function isWaitingStatus(value) {
+      const text = String(value || "").toLowerCase();
+      return text.indexOf("wait") >= 0
+        || text.indexOf("input") >= 0
+        || text.indexOf("approve") >= 0;
+    }
+
+    function playDoneTone() {
+      const now = Date.now();
+      if (now - lastDoneToneAt < 1200) return;
+      lastDoneToneAt = now;
+      try {
+        if (window.Buddy && typeof window.Buddy.playDoneTone === "function") {
+          window.Buddy.playDoneTone();
+        }
+      } catch (err) {
+      }
+    }
+
+    function playWaitingTone() {
+      const now = Date.now();
+      if (now - lastWaitingToneAt < 1200) return;
+      lastWaitingToneAt = now;
+      try {
+        if (window.Buddy && typeof window.Buddy.playWaitingTone === "function") {
+          window.Buddy.playWaitingTone();
+        }
+      } catch (err) {
+      }
+    }
+
+    function resolveIdleTimeout(event, fallbackMs) {
+      if (event && asBool(event.persist, false)) return 0;
+      const raw = event ? Number(event.idleTimeoutMs) : NaN;
+      if (Number.isFinite(raw) && raw >= 0) return raw;
+      return fallbackMs;
+    }
+
+    function clearIdleReturnTimer() {
+      if (idleReturnTimer) {
+        clearTimeout(idleReturnTimer);
+        idleReturnTimer = 0;
+      }
+    }
+
+    function shouldAutoReturnToIdle() {
+      if (!state.idleTimeoutMs || state.idleTimeoutMs <= 0) return false;
+      if (state.mode === "idle" || state.mode === "decision") return false;
+      if (state.decisionOverlayStream) return false;
+      if (state.mode === "stream" && state.media && state.media.kind === "stream" && state.media.active) return false;
+      return true;
+    }
+
+    function scheduleIdleReturnIfNeeded() {
+      clearIdleReturnTimer();
+      if (!shouldAutoReturnToIdle()) return;
+      idleReturnTimer = setTimeout(function() {
+        idleReturnTimer = 0;
+        if (!shouldAutoReturnToIdle()) return;
+        clearState();
+        renderLayout();
+      }, state.idleTimeoutMs);
+    }
+
+    function asBool(value, defaultValue) {
+      if (value === undefined || value === null) return defaultValue;
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      return String(value).toLowerCase() === "true" || String(value) === "1";
+    }
+
+    function updateImageLayoutMetrics() {
+      const screenW = window.innerWidth || document.documentElement.clientWidth || 800;
+      const screenH = window.innerHeight || document.documentElement.clientHeight || 480;
+      const mediaW = Math.round(screenH * 4 / 3);
+      const railW = Math.max(120, Math.round(screenW - mediaW));
+      imageLayout.railW = railW;
+      imageLayout.railCenter = Math.round(railW / 2);
+      app.style.setProperty("--image-rail-w", railW + "px");
+      app.style.setProperty("--image-rail-center", imageLayout.railCenter + "px");
+    }
+
+    function resetPetPosition() {
+      petCardEl.style.left = "50%";
+      petCardEl.style.top = "50%";
+      petCardEl.style.marginLeft = "calc(var(--pet-w) / -2)";
+      petCardEl.style.marginTop = "calc(var(--pet-h) / -2)";
+      petCardEl.style.transform = "translate3d(0, 0, 0)";
+    }
+
+    function positionPet(left, top) {
+      petCardEl.style.left = left;
+      petCardEl.style.top = top;
+      petCardEl.style.marginLeft = "calc(var(--pet-w) / -2)";
+      petCardEl.style.marginTop = "calc(var(--pet-h) / -2)";
+      petCardEl.style.transform = "translate3d(0, 0, 0)";
+    }
+
+    function useCssPetPosition() {
+      petCardEl.style.left = "";
+      petCardEl.style.top = "";
+      petCardEl.style.marginLeft = "";
+      petCardEl.style.marginTop = "";
+      petCardEl.style.transform = "translate3d(0, 0, 0)";
+    }
+
+    function renderPet() {
+      petCardEl.innerHTML = "";
+      petCardEl.classList.toggle("image-pet", Boolean(state.petUrl));
+      petCardEl.classList.toggle("sprite-pet", !state.petUrl);
+      const sprite = document.createElement("div");
+      sprite.className = "pet-sprite";
+      if (state.petUrl) {
+        const img = document.createElement("img");
+        img.src = state.petUrl;
+        sprite.appendChild(img);
+      } else {
+        sprite.classList.add("codex-avatar");
+        sprite.style.backgroundImage = "url(" + (state.petSpritesheetUrl || resolveBuiltInPet(state.petId).spritesheetUrl) + ")";
+        fitCodexSprite(sprite);
+      }
+      petCardEl.appendChild(sprite);
+      syncPetAnimation();
+    }
+
+    function petSpriteEl() {
+      return petCardEl.querySelector(".pet-sprite");
+    }
+
+    function fitCodexSprite(sprite) {
+      if (!sprite || !sprite.classList.contains("codex-avatar")) return;
+      const frameRatio = 192 / 208;
+      const cardWidth = petCardEl.clientWidth || 1;
+      const cardHeight = petCardEl.clientHeight || 1;
+      let width = Math.min(cardWidth, Math.round(cardHeight * frameRatio));
+      let height = Math.round(width / frameRatio);
+      if (height > cardHeight) {
+        height = cardHeight;
+        width = Math.round(height * frameRatio);
+      }
+      sprite.style.width = width + "px";
+      sprite.style.height = height + "px";
+    }
+
+    function clearPetAnimationTimer() {
+      if (petAnimation.timer) {
+        clearTimeout(petAnimation.timer);
+        petAnimation.timer = 0;
+      }
+    }
+
+    function petFramePosition(frame) {
+      return (frame.columnIndex / (PET_COLS - 1) * 100) + "% " + (frame.rowIndex / (PET_ROWS - 1) * 100) + "%";
+    }
+
+    function petResolvedAnimation(stateName) {
+      const frames = PET_ANIMATIONS[stateName] || PET_ANIMATIONS.idle;
+      if (stateName === "idle") {
+        return { frames: PET_IDLE, loopStartIndex: 0 };
+      }
+      const tripled = frames.concat(frames, frames);
+      return { frames: tripled.concat(PET_IDLE), loopStartIndex: tripled.length };
+    }
+
+    function inferPetState() {
+      if (drag.active && state.mode === "decision" && !state.decisionOverlayStream) {
+        if (drag.dx <= -16) return "running-left";
+        if (drag.dx >= 16) return "running-right";
+        return "waiting";
+      }
+      if (state.mode === "decision") {
+        return "waiting";
+      }
+      if (state.mode === "stream" || (state.mode === "decision" && state.decisionOverlayStream && state.media && state.media.kind === "stream")) {
+        const rawStatus = String((state.media && (state.media.status || state.media.leftStatus)) || state.mood || "").toLowerCase();
+        if (rawStatus.indexOf("fail") >= 0 || rawStatus.indexOf("error") >= 0 || rawStatus.indexOf("block") >= 0 || rawStatus.indexOf("deny") >= 0) {
+          return "failed";
+        }
+        if (rawStatus.indexOf("wait") >= 0 || rawStatus.indexOf("input") >= 0 || rawStatus.indexOf("approve") >= 0) {
+          return "waiting";
+        }
+        if (rawStatus.indexOf("done") >= 0 || rawStatus.indexOf("success") >= 0 || rawStatus.indexOf("review") >= 0 || rawStatus.indexOf("ready") >= 0) {
+          return "review";
+        }
+        return "running";
+      }
+      return "idle";
+    }
+
+    function syncPetAnimation() {
+      const sprite = petSpriteEl();
+      clearPetAnimationTimer();
+      state.petState = inferPetState();
+      if (!sprite || !sprite.classList.contains("codex-avatar")) return;
+      const next = petResolvedAnimation(state.petState);
+      petAnimation.state = state.petState;
+      petAnimation.frames = next.frames;
+      petAnimation.frameIndex = 0;
+      petAnimation.loopStartIndex = next.loopStartIndex;
+      runPetAnimationFrame(sprite);
+    }
+
+    function runPetAnimationFrame(sprite) {
+      if (!sprite || !petAnimation.frames.length) return;
+      const frame = petAnimation.frames[petAnimation.frameIndex];
+      sprite.style.backgroundPosition = petFramePosition(frame);
+      if (petAnimation.frames.length === 1) return;
+      petAnimation.timer = setTimeout(function() {
+        let nextIndex = petAnimation.frameIndex + 1;
+        if (nextIndex >= petAnimation.frames.length) {
+          nextIndex = petAnimation.loopStartIndex != null ? petAnimation.loopStartIndex : 0;
+        }
+        petAnimation.frameIndex = nextIndex;
+        runPetAnimationFrame(sprite);
+      }, frame.frameDurationMs);
+    }
+
+    function clearAudioUi() {
+      if (state.audioUi && state.audioUi.timer) {
+        clearInterval(state.audioUi.timer);
+      }
+      state.audioUi = null;
+    }
+
+    function updateAudioUi() {
+      if (!state.audioUi) return;
+      const audioState = readAudioState();
+      if (!audioState) return;
+      const duration = Math.max(0, Number(audioState.duration) || 0);
+      const position = Math.max(0, Number(audioState.position) || 0);
+      const progress = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+      state.audioUi.fill.style.width = progress + "%";
+      state.audioUi.knob.style.left = progress + "%";
+      state.audioUi.currentTime.textContent = formatTime(position);
+      state.audioUi.totalTime.textContent = duration > 0 ? formatTime(duration) : "--:--";
+      state.audioUi.playPause.classList.toggle("is-paused", !audioState.playing);
+    }
+
+    function startAudioUiPolling() {
+      if (!state.audioUi) return;
+      state.audioUi.timer = setInterval(updateAudioUi, 400);
+      updateAudioUi();
+    }
+
+    function clearStreamUi() {
+      if (state.streamUi && state.streamUi.renderRaf) {
+        cancelAnimationFrame(state.streamUi.renderRaf);
+      }
+      if (state.streamUi && state.streamUi.renderTimer) {
+        clearTimeout(state.streamUi.renderTimer);
+      }
+      state.streamUi = null;
+    }
+
+    function trimStreamText(text, maxLines, maxChars) {
+      let value = String(text || "");
+      if (value.length > maxChars) {
+        value = value.slice(value.length - maxChars);
+      }
+      const lines = value.split(/\r?\n/);
+      if (lines.length > maxLines) {
+        value = lines.slice(lines.length - maxLines).join("\n");
+      }
+      return value;
+    }
+
+    function snapshotCurrentScene() {
+      return {
+        mode: state.mode,
+        mood: state.mood,
+        title: state.title,
+        body: state.body,
+        approvalId: state.approvalId,
+        agentKind: state.agentKind,
+        petId: state.petId,
+        petSpritesheetUrl: state.petSpritesheetUrl,
+        petUrl: state.petUrl,
+        media: state.media ? JSON.parse(JSON.stringify(state.media)) : null,
+        panel: state.panel ? JSON.parse(JSON.stringify(state.panel)) : null,
+        sceneActions: state.sceneActions ? JSON.parse(JSON.stringify(state.sceneActions)) : null,
+        idleTimeoutMs: state.idleTimeoutMs
+      };
+    }
+
+    function restoreScene(snapshot) {
+      if (!snapshot) return false;
+      state.mode = snapshot.mode || "idle";
+      state.mood = snapshot.mood || "idle";
+      state.title = snapshot.title || "";
+      state.body = snapshot.body || "";
+      state.approvalId = snapshot.approvalId || null;
+      state.agentKind = normalizeAgentKind(snapshot.agentKind || "", "");
+      state.petId = normalizePetId(snapshot.petId || selectedPet.id || DEFAULT_PET_ID, DEFAULT_PET_ID);
+      state.petSpritesheetUrl = absolutize(snapshot.petSpritesheetUrl || "");
+      state.petUrl = absolutize(snapshot.petUrl || "");
+      if (!state.petSpritesheetUrl && !state.petUrl) {
+        state.petId = normalizeBuiltInPetId(defaultPetIdForAgentKind(state.agentKind) || state.petId);
+      }
+      state.media = snapshot.media ? JSON.parse(JSON.stringify(snapshot.media)) : null;
+      state.panel = snapshot.panel ? JSON.parse(JSON.stringify(snapshot.panel)) : null;
+      state.sceneActions = snapshot.sceneActions ? JSON.parse(JSON.stringify(snapshot.sceneActions)) : null;
+      state.idleTimeoutMs = Number(snapshot.idleTimeoutMs) || 0;
+      return true;
+    }
+
+    function streamTarget(streamId) {
+      if (state.mode === "stream" && state.media && state.media.kind === "stream") {
+        if (!streamId || !state.media.streamId || streamId === state.media.streamId) {
+          return state.media;
+        }
+      }
+      if (state.mode === "decision" && state.decisionOverlayStream && state.media && state.media.kind === "stream") {
+        if (!streamId || !state.media.streamId || streamId === state.media.streamId) {
+          return state.media;
+        }
+      }
+      if (state.resumeScene && state.resumeScene.media && state.resumeScene.media.kind === "stream") {
+        if (!streamId || !state.resumeScene.media.streamId || streamId === state.resumeScene.media.streamId) {
+          return state.resumeScene.media;
+        }
+      }
+      return null;
+    }
+
+    function scrollStreamToBottom() {
+      if (!state.streamUi || !state.streamUi.scroll) return;
+      const ui = state.streamUi;
+      ui.scroll.scrollTop = ui.scroll.scrollHeight;
+      if (ui.anchor && ui.anchor.scrollIntoView) {
+        ui.anchor.scrollIntoView(false);
+      }
+    }
+
+    function performStreamUiSync() {
+      if (!state.streamUi || !state.media || state.media.kind !== "stream") return;
+      const ui = state.streamUi;
+      ui.renderRaf = 0;
+      ui.renderPending = false;
+      ui.text.textContent = state.media.text || "";
+      ui.cursor.classList.toggle("hidden", !state.media.active);
+      titleEl.textContent = formatStreamLabel(state.media.leftStatus || state.media.status || "thinking");
+      bodyEl.textContent = state.media.leftSubtext || "";
+      requestAnimationFrame(scrollStreamToBottom);
+    }
+
+    function syncStreamUi() {
+      if (!state.streamUi || !state.media || state.media.kind !== "stream") return;
+      const ui = state.streamUi;
+      if (ui.renderPending) return;
+      ui.renderPending = true;
+      ui.renderRaf = requestAnimationFrame(performStreamUiSync);
+      ui.renderTimer = setTimeout(function() {
+        if (!state.streamUi || state.streamUi !== ui || !ui.renderPending) return;
+        performStreamUiSync();
+      }, 34);
+    }
+
+    function appendStreamChunk(text) {
+      const target = streamTarget("");
+      if (!target) return;
+      target.text = trimStreamText(
+        (target.text || "") + String(text || ""),
+        target.maxLines || 160,
+        target.maxChars || 12000
+      );
+      if (state.mode === "decision" && state.decisionOverlayStream && state.resumeScene && target === state.media) {
+        state.resumeScene.media = JSON.parse(JSON.stringify(state.media));
+      }
+      if (target === state.media) {
+        syncStreamUi();
+      }
+    }
+
+    function renderMedia() {
+      clearAudioUi();
+      clearStreamUi();
+      mediaLayerEl.className = "media-layer";
+      mediaLayerEl.innerHTML = "";
+      if (!state.media) return;
+      mediaLayerEl.classList.add("visible");
+      if (state.media.kind === "image") {
+        if (state.media.fullscreen) {
+          const img = document.createElement("img");
+          img.src = state.media.url;
+          img.style.objectFit = state.media.fit;
+          mediaLayerEl.appendChild(img);
+        } else {
+          const stage = document.createElement("div");
+          stage.className = "image-stage";
+
+          const frame = document.createElement("div");
+          frame.className = "image-frame";
+
+          const img = document.createElement("img");
+          img.src = state.media.url;
+          img.style.objectFit = state.media.fit;
+          img.addEventListener("load", function() {
+            img.classList.add("ready");
+          });
+
+          frame.appendChild(img);
+          stage.appendChild(frame);
+          mediaLayerEl.appendChild(stage);
+        }
+      } else if (state.media.kind === "video") {
+        if (state.media.fullscreen) {
+          const video = document.createElement("video");
+          video.src = state.media.url;
+          video.autoplay = state.media.autoplay;
+          video.loop = state.media.loop;
+          video.controls = state.media.controls;
+          video.muted = state.media.muted;
+          video.playsInline = true;
+          video.style.objectFit = state.media.fit;
+          mediaLayerEl.appendChild(video);
+        } else {
+          const stage = document.createElement("div");
+          stage.className = "video-stage";
+
+          const frame = document.createElement("div");
+          frame.className = "video-frame";
+
+          const video = document.createElement("video");
+          video.src = state.media.url;
+          video.autoplay = state.media.autoplay;
+          video.loop = state.media.loop;
+          video.controls = state.media.controls;
+          video.muted = state.media.muted;
+          video.playsInline = true;
+          video.preload = "metadata";
+          video.style.objectFit = state.media.fit;
+          video.addEventListener("loadeddata", function() {
+            video.classList.add("ready");
+          });
+
+          const hint = document.createElement("div");
+          hint.className = "video-hint";
+          hint.textContent = state.media.loop ? "looping" : "video";
+
+          frame.appendChild(video);
+          stage.appendChild(frame);
+          stage.appendChild(hint);
+          mediaLayerEl.appendChild(stage);
+
+          setTimeout(function() {
+            hint.classList.add("visible");
+            setTimeout(function() {
+              hint.classList.remove("visible");
+            }, 1200);
+          }, 160);
+        }
+      } else if (state.media.kind === "audio") {
+        const stage = document.createElement("div");
+        stage.className = "audio-stage";
+
+        const panel = document.createElement("div");
+        panel.className = "audio-panel";
+
+        const deck = document.createElement("div");
+        deck.className = "audio-deck";
+
+        const heading = document.createElement("div");
+        heading.className = "audio-heading";
+        heading.textContent = (state.title || "Audio").toUpperCase();
+
+        const progressShell = document.createElement("div");
+        progressShell.className = "audio-progress-shell";
+
+        const track = document.createElement("div");
+        track.className = "audio-progress-track";
+
+        const fill = document.createElement("div");
+        fill.className = "audio-progress-fill";
+
+        const knob = document.createElement("div");
+        knob.className = "audio-progress-knob";
+
+        const times = document.createElement("div");
+        times.className = "audio-times";
+
+        const currentTime = document.createElement("span");
+        currentTime.textContent = "0:00";
+
+        const totalTime = document.createElement("span");
+        totalTime.textContent = "--:--";
+
+        times.appendChild(currentTime);
+        times.appendChild(totalTime);
+        track.appendChild(fill);
+        track.appendChild(knob);
+        progressShell.appendChild(track);
+        progressShell.appendChild(times);
+
+        const controls = document.createElement("div");
+        controls.className = "audio-controls";
+
+        const prev = document.createElement("button");
+        prev.className = "audio-control prev";
+        prev.type = "button";
+        prev.addEventListener("click", restartAudio);
+
+        const playPause = document.createElement("button");
+        playPause.className = "audio-control playpause";
+        playPause.type = "button";
+        const playGlyph = document.createElement("span");
+        playPause.appendChild(playGlyph);
+        playPause.addEventListener("click", function() {
+          const paused = playPause.classList.contains("is-paused");
+          if (paused) {
+            resumeAudio();
+          } else {
+            pauseAudio();
+          }
+          setTimeout(updateAudioUi, 80);
+        });
+
+        const next = document.createElement("button");
+        next.className = "audio-control next";
+        next.type = "button";
+        next.addEventListener("click", stopAudio);
+
+        controls.appendChild(prev);
+        controls.appendChild(playPause);
+        controls.appendChild(next);
+
+        const loopBadge = document.createElement("div");
+        loopBadge.className = "audio-loop-badge";
+        loopBadge.textContent = state.media.loop ? "loop" : "single";
+
+        deck.appendChild(heading);
+        deck.appendChild(progressShell);
+        deck.appendChild(controls);
+        panel.appendChild(deck);
+        panel.appendChild(loopBadge);
+        stage.appendChild(panel);
+        mediaLayerEl.appendChild(stage);
+
+        state.audioUi = {
+          fill,
+          knob,
+          currentTime,
+          totalTime,
+          playPause,
+          timer: null
+        };
+        startAudioUiPolling();
+      } else if (state.media.kind === "stream") {
+        const stage = document.createElement("div");
+        stage.className = "stream-stage";
+
+        const frame = document.createElement("div");
+        frame.className = "stream-frame";
+
+        const panel = document.createElement("div");
+        panel.className = "stream-panel";
+
+        const body = document.createElement("div");
+        body.className = "stream-body";
+
+        const log = document.createElement("div");
+        log.className = "stream-log";
+
+        const text = document.createElement("span");
+        const cursor = document.createElement("span");
+        cursor.className = "stream-cursor";
+        const bottomGap = document.createElement("div");
+        bottomGap.className = "stream-bottom-gap";
+        const anchor = document.createElement("div");
+        anchor.className = "stream-anchor";
+        log.appendChild(text);
+        log.appendChild(cursor);
+        log.appendChild(bottomGap);
+        log.appendChild(anchor);
+        body.appendChild(log);
+        panel.appendChild(body);
+        frame.appendChild(panel);
+        stage.appendChild(frame);
+        mediaLayerEl.appendChild(stage);
+
+        state.streamUi = {
+          scroll: body,
+          log,
+          text,
+          cursor,
+          bottomGap,
+          anchor,
+          renderPending: false,
+          renderRaf: 0,
+          renderTimer: 0
+        };
+        syncStreamUi();
+      } else if (state.media.kind === "html") {
+        const box = document.createElement("div");
+        box.className = "htmlbox";
+        box.innerHTML = state.media.html;
+        mediaLayerEl.appendChild(box);
+      }
+    }
+
+    function renderPanel() {
+      panelEl.className = "panel";
+      panelEl.innerHTML = "";
+      if (!state.panel) return;
+      panelEl.classList.add("visible");
+      panelEl.classList.add(state.panel.side === "bottom" ? "bottom" : "right");
+      if (state.panel.html) {
+        panelEl.innerHTML = state.panel.html;
+      } else {
+        panelEl.innerHTML =
+          (state.panel.title ? "<h2>" + escapeHtml(state.panel.title) + "</h2>" : "") +
+          (state.panel.text ? "<div>" + escapeHtml(state.panel.text) + "</div>" : "");
+      }
+    }
+
+    function renderDecision(activeSide) {
+      const visible = state.mode === "decision";
+      const leftIcon = zoneLeftEl.querySelector(".icon");
+      const rightIcon = zoneRightEl.querySelector(".icon");
+      zoneLeftEl.style.display = visible ? "block" : "none";
+      zoneRightEl.style.display = visible ? "block" : "none";
+      zoneLeftEl.classList.toggle("active", activeSide === "left");
+      zoneRightEl.classList.toggle("active", activeSide === "right");
+      if (state.decisionOverlayStream) {
+        if (leftIcon) leftIcon.textContent = "×";
+        if (rightIcon) rightIcon.textContent = "✓";
+        zoneLeftLabelEl.textContent = (state.sceneActions && state.sceneActions.right && state.sceneActions.right.label) || "拒绝";
+        zoneRightLabelEl.textContent = (state.sceneActions && state.sceneActions.left && state.sceneActions.left.label) || "确认";
+      } else {
+        if (leftIcon) leftIcon.textContent = "✓";
+        if (rightIcon) rightIcon.textContent = "×";
+        zoneLeftLabelEl.textContent = (state.sceneActions && state.sceneActions.left && state.sceneActions.left.label) || "确认";
+        zoneRightLabelEl.textContent = (state.sceneActions && state.sceneActions.right && state.sceneActions.right.label) || "拒绝";
+      }
+    }
+
+    function resetDecisionBurst() {
+      burstLeftEl.className = "decision-burst left approve";
+      burstRightEl.className = "decision-burst right deny";
+    }
+
+    function renderLayout() {
+      app.className = "app " + (state.mode || "idle");
+      if (state.mode === "decision" && state.decisionOverlayStream && state.media && state.media.kind === "stream") {
+        app.classList.add("decision-stream-overlay");
+      }
+      if ((state.mode === "image" || state.mode === "video" || state.mode === "audio") && state.media) {
+        updateImageLayoutMetrics();
+        if (state.media.fit) {
+          app.classList.add("fit-" + state.media.fit);
+        }
+      }
+      const linkedBadgeOnly = state.mode === "idle" && state.mood === "linked";
+      chipEl.textContent = state.mood || "idle";
+      titleEl.textContent = state.title || "";
+      bodyEl.textContent = state.body || "";
+      titleWrapEl.classList.toggle("hidden",
+        linkedBadgeOnly
+        || state.mode === "side-panel"
+        || state.mode === "bottom-sheet"
+        || Boolean(state.media && state.media.fullscreen)
+      );
+      chipEl.classList.toggle("hidden", state.mode === "decision");
+
+      renderPet();
+      renderMedia();
+      renderPanel();
+      renderDecision("");
+      resetDecisionBurst();
+
+      if (state.mode === "side-panel") {
+        positionPet("20%", "52%");
+      } else if (state.mode === "bottom-sheet") {
+        positionPet("50%", "52%");
+      } else if (state.mode === "decision") {
+        if (state.decisionOverlayStream) {
+          positionPet("74px", "50%");
+          petCardEl.style.marginLeft = "-52px";
+          petCardEl.style.marginTop = "-44px";
+        } else {
+          positionPet("50%", "60%");
+        }
+      } else if ((state.mode === "image" || state.mode === "video" || state.mode === "audio" || state.mode === "stream") && state.media && !state.media.fullscreen) {
+        useCssPetPosition();
+      } else {
+        resetPetPosition();
+      }
+
+      if (state.media && state.media.fullscreen) {
+        petCardEl.classList.add("hidden");
+      } else {
+        petCardEl.classList.remove("hidden");
+      }
+
+      syncPetAnimation();
+    }
+
+    function clearState() {
+      state.mode = "idle";
+      state.mood = "idle";
+      state.title = "Ready";
+      state.body = "";
+      state.approvalId = null;
+      state.media = null;
+      state.panel = null;
+      state.agentKind = "";
+      state.sceneActions = null;
+      restoreSelectedPet();
+      state.idleTimeoutMs = 0;
+      clearAudioUi();
+      clearStreamUi();
+      state.resumeScene = null;
+      state.decisionOverlayStream = false;
+      state.petState = "idle";
+      clearIdleReturnTimer();
+      stopAudio();
+    }
+
+    function applyScene(event) {
+      state.mode = event.scene || "idle";
+      state.mood = state.mode;
+      state.title = event.title || "";
+      state.body = event.body || "";
+      state.approvalId = event.id || null;
+      state.agentKind = resolveEventAgentKind(event, "");
+      applyPetSelection(petSelectionFromEvent(event), false);
+      state.media = null;
+      state.panel = null;
+      state.sceneActions = {
+        left: ((event.actions && event.actions.left) || { id: "approve", label: "确认" }),
+        right: ((event.actions && event.actions.right) || { id: "deny", label: "拒绝" })
+      };
+      state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+
+      if (state.mode === "side-panel" || state.mode === "bottom-sheet") {
+        const panel = event.panel || {};
+        state.panel = {
+          side: state.mode === "bottom-sheet" ? "bottom" : (panel.side || "right"),
+          title: event.title || "",
+          text: event.text || panel.text || event.body || "",
+          html: event.html || panel.html || ""
+        };
+      }
+    }
+
+    function applyEvent(event) {
+      if (!event || typeof event !== "object") return;
+      const type = event.type || "message";
+
+      if (type === "clear") {
+        clearState();
+      } else if (type === "stop_audio") {
+        stopAudio();
+      } else if (type === "scene") {
+        applyScene(event);
+      } else if (type === "approval" || type === "approval_request") {
+        clearIdleReturnTimer();
+        const approvalEvent = {
+          type: "scene",
+          scene: "decision",
+          id: event.id || ("approval-" + Date.now()),
+          title: event.title || "需要确认",
+          body: event.body || "",
+          petId: event.petId || selectedPet.id,
+          petSpritesheetUrl: event.petSpritesheetUrl || "",
+          petUrl: event.petUrl || "",
+          actions: {
+            left: { id: "approve", label: event.approveLabel || "确认" },
+            right: { id: "deny", label: event.denyLabel || "拒绝" }
+          }
+        };
+        if (state.mode === "stream" && state.media && state.media.kind === "stream") {
+          state.resumeScene = snapshotCurrentScene();
+          state.decisionOverlayStream = true;
+          state.media = state.resumeScene.media ? JSON.parse(JSON.stringify(state.resumeScene.media)) : state.media;
+          state.mode = "decision";
+          state.mood = "waiting";
+          state.title = approvalEvent.title;
+          state.body = approvalEvent.body;
+          state.approvalId = approvalEvent.id;
+          applyPetSelection(petSelectionFromEvent(approvalEvent), false);
+          state.sceneActions = approvalEvent.actions;
+        } else {
+          state.resumeScene = null;
+          state.decisionOverlayStream = false;
+          applyScene(approvalEvent);
+        }
+      } else if (type === "image") {
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        state.mode = "image";
+        state.mood = event.mood || "image";
+        state.title = event.title || "Image";
+        state.body = event.body || "";
+        state.approvalId = null;
+        applyPetSelection(petSelectionFromEvent(event), false);
+        state.panel = null;
+        state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+        state.media = {
+          kind: "image",
+          url: absolutize(event.url),
+          fit: event.fit || "contain",
+          fullscreen: asBool(event.fullscreen || event.view === "fullscreen", false)
+        };
+      } else if (type === "video") {
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        state.mode = "video";
+        state.mood = event.mood || "video";
+        state.title = event.title || "Video";
+        state.body = event.body || "";
+        state.approvalId = null;
+        applyPetSelection(petSelectionFromEvent(event), false);
+        state.panel = null;
+        state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+        state.media = {
+          kind: "video",
+          url: absolutize(event.url),
+          fit: event.fit || "contain",
+          loop: asBool(event.loop, false),
+          controls: asBool(event.controls, false),
+          muted: asBool(event.muted, false),
+          autoplay: asBool(event.autoplay, true),
+          fullscreen: asBool(event.fullscreen || event.view === "fullscreen", false)
+        };
+      } else if (type === "html") {
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        state.mode = "html";
+        state.mood = event.mood || "html";
+        state.title = event.title || "HTML";
+        state.body = event.body || "";
+        state.approvalId = null;
+        applyPetSelection(petSelectionFromEvent(event), false);
+        state.panel = null;
+        state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+        state.media = {
+          kind: "html",
+          html: event.html || "",
+          fullscreen: asBool(event.fullscreen || event.view === "fullscreen", false)
+        };
+      } else if (type === "audio") {
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        state.mode = "audio";
+        state.mood = event.mood || "audio";
+        state.title = event.title || "Audio";
+        state.body = event.body || "";
+        state.approvalId = null;
+        state.agentKind = resolveEventAgentKind(event, "audio");
+        applyPetSelection(petSelectionFromEvent(event), false);
+        state.panel = null;
+        state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+        state.media = {
+          kind: "audio",
+          url: absolutize(event.url),
+          loop: asBool(event.loop, false),
+          autoplay: true
+        };
+        playAudio(absolutize(event.url), event.loop);
+      } else if (type === "stream_start") {
+        const streamPet = petSelectionFromEvent(event);
+        const streamState = {
+          mode: "stream",
+          mood: event.mood || "thinking",
+          title: formatStreamLabel(event.mood || "thinking"),
+          body: event.title || event.body || "",
+          approvalId: null,
+          agentKind: resolveEventAgentKind(event, ""),
+          petId: streamPet.id || DEFAULT_PET_ID,
+          petSpritesheetUrl: streamPet.spritesheetUrl || "",
+          petUrl: streamPet.url || "",
+          panel: null,
+          sceneActions: null,
+          idleTimeoutMs: resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS),
+          media: {
+          kind: "stream",
+          streamId: event.streamId || event.id || ("stream-" + Date.now()),
+          headTitle: event.headTitle || "Live Output",
+          text: trimStreamText(event.text || "", Math.max(20, Number(event.maxLines) || 160), Math.max(2000, Number(event.maxChars) || 12000)),
+          status: event.status || event.mood || "live",
+          active: true,
+          leftStatus: formatStreamLabel(event.mood || "thinking"),
+          leftSubtext: event.title || event.body || "",
+          maxLines: Math.max(20, Number(event.maxLines) || 160),
+          maxChars: Math.max(2000, Number(event.maxChars) || 12000)
+          }
+        };
+        streamState.media.active = asBool(event.active, true);
+        if (event.status) {
+          streamState.media.leftStatus = formatStreamLabel(event.status);
+        }
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        restoreScene(streamState);
+      } else if (type === "stream_chunk") {
+        const target = streamTarget(event.streamId || "");
+        if (!target) {
+          applyEvent({
+            type: "stream_start",
+            streamId: event.streamId,
+            title: event.title || "Agent",
+            body: event.body || "",
+            text: event.text || "",
+            mood: event.mood || "thinking",
+            petId: event.petId || selectedPet.id || DEFAULT_PET_ID,
+            petSpritesheetUrl: event.petSpritesheetUrl || "",
+            petUrl: event.petUrl || ""
+          });
+          return;
+        }
+        target.text = trimStreamText(
+          (target.text || "") + String(event.text || event.append || ""),
+          target.maxLines || 160,
+          target.maxChars || 12000
+        );
+        if (state.mode === "decision" && state.decisionOverlayStream && state.resumeScene && target === state.media) {
+          state.resumeScene.media = JSON.parse(JSON.stringify(state.media));
+        }
+        if (target === state.media) {
+          syncStreamUi();
+        }
+        return;
+      } else if (type === "stream_meta" || type === "agent_status") {
+        const target = streamTarget(event.streamId || "");
+        if (target) {
+          const prevStatus = String(target.status || "");
+          state.idleTimeoutMs = resolveIdleTimeout(event, state.idleTimeoutMs || DEFAULT_IDLE_RETURN_MS);
+          state.agentKind = resolveEventAgentKind(event, state.agentKind || "");
+          if (event.status) {
+            target.status = String(event.status);
+            target.leftStatus = formatStreamLabel(event.status);
+            if (!isCompletionStatus(prevStatus) && isCompletionStatus(target.status)) {
+              playDoneTone();
+            } else if (!isWaitingStatus(prevStatus) && isWaitingStatus(target.status)) {
+              playWaitingTone();
+            }
+          }
+          if (event.title || event.body) {
+            target.leftSubtext = event.title || event.body || target.leftSubtext;
+          }
+          if (state.mode === "decision" && state.decisionOverlayStream && state.resumeScene && target === state.media) {
+            state.resumeScene.media = JSON.parse(JSON.stringify(state.media));
+          }
+          if (target === state.media) {
+            syncStreamUi();
+          }
+          scheduleIdleReturnIfNeeded();
+        }
+        return;
+      } else if (type === "stream_end") {
+        const target = streamTarget(event.streamId || "");
+        if (target) {
+          state.idleTimeoutMs = resolveIdleTimeout(event, state.idleTimeoutMs || DEFAULT_IDLE_RETURN_MS);
+          target.active = false;
+          target.status = event.status || (Number(event.exitCode) === 0 ? "done" : "failed");
+          target.leftStatus = formatStreamLabel(target.status);
+          if (isCompletionStatus(target.status)) {
+            playDoneTone();
+          }
+          if (state.mode === "decision" && state.decisionOverlayStream && state.resumeScene && target === state.media) {
+            state.resumeScene.media = JSON.parse(JSON.stringify(state.media));
+          }
+          if (target === state.media) {
+            syncStreamUi();
+          }
+          scheduleIdleReturnIfNeeded();
+          return;
+        }
+      } else if (type === "mood") {
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        state.mode = "idle";
+        state.mood = event.mood || "idle";
+        state.title = event.title || state.title;
+        state.body = event.body || "";
+        state.approvalId = null;
+        state.agentKind = resolveEventAgentKind(event, "");
+        state.media = null;
+        state.panel = null;
+        applyPetSelection(petSelectionFromEvent(event), false);
+        state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+      } else if (type === "pet") {
+        state.agentKind = resolveEventAgentKind(event, "");
+        applyPetSelection(petSelectionFromEvent(event), true);
+        state.title = event.title || state.title || "Ready";
+        state.body = event.body !== undefined ? (event.body || "") : state.body;
+        if (state.mode === "idle" || event.mode === "idle" || !state.media) {
+          state.mode = "idle";
+          state.mood = event.mood || "idle";
+          state.media = null;
+          state.panel = null;
+          state.approvalId = null;
+        }
+      } else {
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        state.mode = "idle";
+        state.mood = event.mood || "noted";
+        state.title = event.title || "Message";
+        state.body = event.body || event.text || "";
+        state.approvalId = null;
+        state.agentKind = resolveEventAgentKind(event, "");
+        state.media = null;
+        state.panel = null;
+        applyPetSelection(petSelectionFromEvent(event), false);
+        state.idleTimeoutMs = resolveIdleTimeout(event, DEFAULT_IDLE_RETURN_MS);
+      }
+
+      renderLayout();
+      scheduleIdleReturnIfNeeded();
+    }
+
+    window.buddyApplyEvent = applyEvent;
+    window.addEventListener("resize", function() {
+      if (state.mode === "image" || state.mode === "video" || state.mode === "audio") {
+        updateImageLayoutMetrics();
+        renderLayout();
+      }
+    });
+
+    function respondScene(side) {
+      if (!state.approvalId || !state.sceneActions) return;
+      const action = side === "left" ? state.sceneActions.left : state.sceneActions.right;
+      if (state.decisionOverlayStream && state.resumeScene && state.resumeScene.media && state.resumeScene.media.kind === "stream") {
+        const actionId = String(action.id || side).toLowerCase();
+        const outcomeText = actionId.indexOf("deny") >= 0 || actionId.indexOf("reject") >= 0
+          ? "User denied request."
+          : "User approved request.";
+        const resumeMedia = state.resumeScene.media;
+        resumeMedia.text = trimStreamText(
+          (resumeMedia.text || "") + outcomeText + "\n",
+          resumeMedia.maxLines || 160,
+          resumeMedia.maxChars || 12000
+        );
+        resumeMedia.leftStatus = actionId.indexOf("deny") >= 0 || actionId.indexOf("reject") >= 0 ? "Denied" : "Approved";
+      }
+      send({
+        type: "response",
+        id: state.approvalId,
+        action: action.id || side,
+        side,
+        ts: Date.now()
+      });
+      playDecisionBurst(side);
+      setTimeout(function() {
+        if (!restoreScene(state.resumeScene)) {
+          clearState();
+        }
+        state.resumeScene = null;
+        state.decisionOverlayStream = false;
+        renderLayout();
+        scheduleIdleReturnIfNeeded();
+      }, 1020);
+    }
+
+    function playDecisionBurst(side) {
+      const target = side === "left" ? burstLeftEl : burstRightEl;
+      resetDecisionBurst();
+      target.classList.add("run");
+    }
+
+    function pointerPoint(event) {
+      const touch = event.touches && event.touches.length ? event.touches[0] :
+        (event.changedTouches && event.changedTouches.length ? event.changedTouches[0] : event);
+      return { x: touch.clientX, y: touch.clientY };
+    }
+
+    function beginDrag(event) {
+      if (state.mode !== "decision" || state.decisionOverlayStream) return;
+      const point = pointerPoint(event);
+      drag.active = true;
+      drag.startX = point.x;
+      drag.startY = point.y;
+      drag.dx = 0;
+      drag.dy = 0;
+      drag.activeSide = "";
+      petCardEl.classList.add("dragging");
+      syncPetAnimation();
+      renderDecision("");
+      event.preventDefault();
+    }
+
+    function scheduleDragVisual() {
+      if (drag.raf) return;
+      drag.raf = requestAnimationFrame(function() {
+        drag.raf = 0;
+        const side = drag.dx < -110 ? "left" : (drag.dx > 110 ? "right" : "");
+        drag.activeSide = side;
+        const clampedX = Math.max(-235, Math.min(235, drag.dx));
+        const clampedY = Math.max(-36, Math.min(26, drag.dy * 0.24));
+        const scale = side ? 0.98 : 1;
+        petCardEl.style.transform = "translate3d(" + clampedX + "px," + clampedY + "px,0) scale(" + scale + ")";
+        syncPetAnimation();
+        renderDecision(side);
+      });
+    }
+
+    function moveDrag(event) {
+      if (!drag.active) return;
+      const point = pointerPoint(event);
+      drag.dx = point.x - drag.startX;
+      drag.dy = point.y - drag.startY;
+      scheduleDragVisual();
+      event.preventDefault();
+    }
+
+    function endDrag(event) {
+      if (!drag.active) return;
+      petCardEl.classList.remove("dragging");
+      if (drag.raf) {
+        cancelAnimationFrame(drag.raf);
+        drag.raf = 0;
+      }
+      const side = drag.activeSide || (drag.dx < -110 ? "left" : (drag.dx > 110 ? "right" : ""));
+      drag.active = false;
+      drag.dx = 0;
+      drag.dy = 0;
+      if (side) {
+        const settleX = side === "left" ? -194 : 194;
+        petCardEl.style.transform = "translate3d(" + settleX + "px,0,0) scale(.95)";
+        renderDecision(side);
+        syncPetAnimation();
+        setTimeout(function() {
+          respondScene(side);
+        }, 110);
+      } else {
+        petCardEl.style.transform = "translate3d(0,0,0) scale(1)";
+        renderDecision("");
+        syncPetAnimation();
+      }
+      event.preventDefault();
+    }
+
+    zoneLeftEl.addEventListener("click", function() { respondScene("right"); });
+    zoneRightEl.addEventListener("click", function() { respondScene("left"); });
+    petCardEl.addEventListener("touchstart", beginDrag, { passive: false });
+    petCardEl.addEventListener("touchmove", moveDrag, { passive: false });
+    petCardEl.addEventListener("touchend", endDrag, { passive: false });
+    petCardEl.addEventListener("mousedown", beginDrag);
+    window.addEventListener("mousemove", moveDrag);
+    window.addEventListener("mouseup", endDrag);
+
+    function tickClock() {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      clockEl.textContent = hh + ":" + mm;
+    }
+
+    clearState();
+    renderLayout();
+    tickClock();
+    setInterval(tickClock, 30000);
+    if (window.Buddy && window.Buddy.ready) {
+      window.Buddy.ready();
+    }
+  </script>
+</body>
+</html>
