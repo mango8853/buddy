@@ -125,11 +125,11 @@ def handle_tool(payload):
     label = TOOL_LABELS.get(tool_name, tool_name)
     detail = tool_detail(tool_name, tool_input)
 
-    body = f"{label}: {detail}" if detail else label
-
-    post("/agent/status", {"id": stream_id, "status": "running", "body": body})
-    if detail:
-        post("/agent/log", {"id": stream_id, "text": f"{label}: {detail}\n"})
+    # Left panel: just status label
+    post("/agent/status", {"id": stream_id, "status": "running", "body": label})
+    # Right panel: tool detail as output
+    log_text = f"{label}: {detail}" if detail else label
+    post("/agent/log", {"id": stream_id, "text": log_text + "\n"})
 
 
 def handle_stop(payload):
