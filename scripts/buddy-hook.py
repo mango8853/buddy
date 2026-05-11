@@ -108,10 +108,16 @@ def stop_tailer():
 
 def start_tailer(transcript_path, stream_id):
     stop_tailer()  # Kill any existing tailer
+    # Pass current file size so tailer starts from here, not missing
+    # anything written between prompt and tailer startup
+    try:
+        offset = os.path.getsize(transcript_path)
+    except OSError:
+        offset = 0
     env = os.environ.copy()
     env["BUDDY_PET_ID"] = PET_ID
     proc = subprocess.Popen(
-        [sys.executable, TAILER_SCRIPT, transcript_path, stream_id],
+        [sys.executable, TAILER_SCRIPT, transcript_path, stream_id, str(offset)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         env=env,

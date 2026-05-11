@@ -58,12 +58,13 @@ def extract_text(message):
 def main():
     transcript_path = sys.argv[1] if len(sys.argv) > 1 else ""
     stream_id = sys.argv[2] if len(sys.argv) > 2 else ""
+    start_offset = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 
     if not transcript_path or not stream_id:
         log("missing transcript_path or stream_id")
         sys.exit(1)
 
-    log(f"start transcript={os.path.basename(transcript_path)} stream={stream_id}")
+    log(f"start transcript={os.path.basename(transcript_path)} stream={stream_id} offset={start_offset}")
 
     # Wait for file
     for _ in range(200):
@@ -85,7 +86,9 @@ def main():
     signal.signal(signal.SIGTERM, on_term)
 
     with open(transcript_path) as f:
-        f.seek(0, 2)  # Start at current end
+        # Seek to the position at which we started (don't miss anything
+        # written between the prompt and tailer startup)
+        f.seek(start_offset)
 
         while not shutdown:
             line = f.readline()
