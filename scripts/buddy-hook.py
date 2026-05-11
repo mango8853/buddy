@@ -65,15 +65,33 @@ def stop_watcher():
 
 
 def start_watcher(transcript_path, session_id):
-    # Don't kill existing watcher - there should only be one per session
-    existing_pid = None
+    # Check if existing watcher is alive and watching the same file
     try:
         with open(PID_FILE) as f:
             existing_pid = int(f.read().strip())
         os.kill(existing_pid, 0)  # Check if alive
-        log(f"watcher already running pid={existing_pid}")
-        return
+        # Read the PID file's transcript path to compare
+        try:
+            with open(PID_FILE + ".path") as pf:
+                old_path = pf.read().strip()
+            if old_path == transcript_path:
+                log(f"watcher already watching same file pid={existing_pid}")
+                return
+            else:
+                log(f"transcript changed, restarting watcher (old={old_path} new={transcript_path})")
+        except FileNotFoundError:
+            pass
+        # Kill old watcher since transcript changed
+        os.kill(existing_pid, signal.SIGTERM)
+        try:
+            os.waitpid(existing_pid, 0)
+        except ChildProcessError:
+            pass
     except (FileNotFoundError, ValueError, ProcessLookupError, OSError):
+        pass
+    try:
+        os.remove(PID_FILE)
+    except FileNotFoundError:
         pass
 
     env = os.environ.copy()
@@ -86,6 +104,8 @@ def start_watcher(transcript_path, session_id):
     )
     with open(PID_FILE, "w") as f:
         f.write(str(proc.pid))
+    with open(PID_FILE + ".path", "w") as f:
+        f.write(transcript_path)
     log(f"started watcher pid={proc.pid} transcript={transcript_path}")
 
 
