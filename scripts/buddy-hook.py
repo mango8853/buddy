@@ -85,12 +85,23 @@ def handle_prompt(payload):
         return
     transcript_path = payload.get("transcript_path", "")
 
-    # End any previous stream first
+    # End any previous stream first, sending unsent text if available
     state = read_state()
     for sid, entry in list(state.items()):
         if entry.get("active"):
-            post("/agent/end", {"id": entry.get("stream_id", ""), "status": "done", "exitCode": 0})
-            log(f"prompt: ended previous stream {entry.get('stream_id', '')}")
+            old_stream = entry.get("stream_id", "")
+            old_transcript = entry.get("transcript", "")
+            # Try to send text from transcript (in case Stop hook didn't fire)
+            if old_transcript and os.path.exists(old_transcript):
+                try:
+                    text = read_latest_assistant_text(old_transcript)
+                    if text:
+                        post("/agent/log", {"id": old_stream, "text": text})
+                        log(f"prompt: flushed {len(text)} chars for {old_stream}")
+                except Exception:
+                    pass
+            post("/agent/end", {"id": old_stream, "status": "done", "exitCode": 0})
+            log(f"prompt: ended previous stream {old_stream}")
             entry["active"] = False
 
     # Use turn counter for unique stream IDs
