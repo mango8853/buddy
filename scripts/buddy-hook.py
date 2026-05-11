@@ -114,21 +114,24 @@ def handle_tool(payload):
     session_id = payload.get("session_id", "")
     tool_name = payload.get("tool_name", "")
     tool_input = payload.get("tool_input", {}) or {}
+    log(f"tool: {tool_name} session={session_id[:8]}")
 
     state = read_state()
     entry = state.get(session_id)
     if not entry or not entry.get("active"):
-        # No active stream - start one
+        log(f"tool: no active stream, calling handle_prompt")
         if session_id:
             handle_prompt(payload)
             state = read_state()
             entry = state.get(session_id)
         if not entry:
+            log(f"tool: still no entry after prompt, giving up")
             return
 
     stream_id = entry["stream_id"]
     label = TOOL_LABELS.get(tool_name, tool_name)
     detail = tool_detail(tool_name, tool_input)
+    log(f"tool: stream={stream_id} label={label} detail={detail[:60] if detail else ''}")
 
     # Left panel: just status label
     post("/agent/status", {"id": stream_id, "status": "running", "body": label})
