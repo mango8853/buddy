@@ -85,35 +85,58 @@ def main():
 
     signal.signal(signal.SIGTERM, on_term)
 
+    line_count = 0
+    last_pos = start_offset
+
     with open(transcript_path) as f:
-        # Seek to the position at which we started (don't miss anything
-        # written between the prompt and tailer startup)
         f.seek(start_offset)
 
         while not shutdown:
             line = f.readline()
             if not line:
                 time.sleep(0.15)
+                # Check if file grew (another process might be writing)
+                try:
+                    cur_size = os.path.getsize(transcript_path)
+                    if cur_size > last_pos + 100:
+                        log(f"file grew from {last_pos} to {cur_size} but readline returned empty - buffering issue?")
+                except OSError:
+                    pass
                 continue
+
+            line_count += 1
+            last_pos = f.tell()
+            if line_count <= 3:
+                log(f"line#{line_count}: len={len(line)} preview={line[:100]}")
 
             try:
                 event = json.loads(line.strip())
             except json.JSONDecodeError:
+                log(f"line#{line_count}: JSON parse error: {line[:80]}")
                 continue
 
-            if event.get("type") != "assistant":
-                continue
+            etype = event.get("type", "")
+            if etype == "assistant":
+                uuid = event.get("uuid", "")
+                if uuid in sent_uuids:
+                    continue
+                sent_uuids.add(uuid)
 
-            uuid = event.get("uuid", "")
-            if uuid in sent_uuids:
-                continue
-            sent_uuids.add(uuid)
+                text = extract_text(event.get("message", {}))
+                if text:
+                    log(f"sending {len(text)} chars")
+                    post("/agent/log", {"id": stream_id, "text": text})
+                else:
+                    # Log content types for debugging
+                    msg = event.get("message", {})
+                    content = msg.get("content", [])
+                    types = [c.get("type", "?") for c in content] if isinstance(content, list) else "N/A"
+                    log(f"no text extracted, content_types={types}")
+            elif etype == "user":
+                log(f"line#{line_count}: user message seen")
+            # Don't log every file-history-snapshot etc.
 
-            text = extract_text(event.get("message", {}))
-            if text:
-                post("/agent/log", {"id": stream_id, "text": text})
-
-    log(f"exit stream={stream_id}")
+    log(f"exit stream={stream_id} lines_read={line_count}")
 
 
 if __name__ == "__main__":
