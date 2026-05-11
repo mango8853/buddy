@@ -142,25 +142,45 @@ def handle_tool(payload):
 
 def handle_stop(payload):
     session_id = payload.get("session_id", "")
-    transcript_path = payload.get("transcript_path", "")
+    last_msg = payload.get("last_assistant_message", {}) or {}
 
     state = read_state()
     entry = state.get(session_id)
     if not entry or not entry.get("active"):
-        log(f"stop: no active stream for {session_id}")
+        log(f"stop: no active stream for {session_id[:8]}")
         return
 
     stream_id = entry["stream_id"]
 
-    # Read transcript to extract assistant text from this turn
-    if transcript_path:
-        try:
-            text = read_latest_assistant_text(transcript_path)
-            if text:
-                post("/agent/log", {"id": stream_id, "text": text})
-                log(f"stop: sent {len(text)} chars of assistant text")
-        except Exception as e:
-            log(f"stop: transcript read error: {e}")
+    # Extract text from last_assistant_message (always available, no file read)
+    content = last_msg.get("content", [])
+    text_parts = []
+    if isinstance(content, list):
+        for block in content:
+            if block.get("type") in ("text", "thinking"):
+                t = block.get("text", "") or block.get("thinking", "")
+                if t:
+                    text_parts.append(t)
+
+    if text_parts:
+        full_text = "".join(text_parts)
+        post("/agent/log", {"id": stream_id, "text": full_text})
+        log(f"stop: sent {len(full_text)} chars from last_assistant_message")
+    else:
+        # Fallback: try reading transcript
+        transcript_path = payload.get("transcript_path", "")
+        if transcript_path and os.path.exists(transcript_path):
+            try:
+                text = read_latest_assistant_text(transcript_path)
+                if text:
+                    post("/agent/log", {"id": stream_id, "text": text})
+                    log(f"stop: sent {len(text)} chars from transcript")
+                else:
+                    log(f"stop: no text found in last_assistant_message or transcript")
+            except Exception as e:
+                log(f"stop: error: {e}")
+        else:
+            log(f"stop: no text source available (content_types={[c.get('type','?') for c in content] if isinstance(content, list) else 'N/A'})")
 
     post("/agent/end", {"id": stream_id, "status": "done", "exitCode": 0})
     entry["active"] = False
