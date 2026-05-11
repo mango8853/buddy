@@ -115,8 +115,15 @@ class ClaudeCodeMonitor:
         if size > self.last_pos:
             self.read_new_content(size)
 
-        # Stream ends only on explicit turn boundary (user message).
-        # This keeps text displayed until the user sends their next prompt.
+        # End stream after 8s of silence (Claude finished, no new content)
+        if self.stream_active and self.last_active_at > 0:
+            if time.time() - self.last_active_at > 8.0:
+                self.end_stream()
+
+        # Start new stream after cooldown (if there's pending content)
+        if not self.stream_active and self.stream_ended_at > 0:
+            if time.time() - self.stream_ended_at > self.cooldown:
+                self.stream_ended_at = 0.0
 
     def find_latest_transcript(self):
         if not os.path.isdir(self.projects_dir):
