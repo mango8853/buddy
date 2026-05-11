@@ -1761,7 +1761,7 @@
       state.petId = normalizePetId(snapshot.petId || selectedPet.id || DEFAULT_PET_ID, DEFAULT_PET_ID);
       state.petSpritesheetUrl = absolutize(snapshot.petSpritesheetUrl || "");
       state.petUrl = absolutize(snapshot.petUrl || "");
-      if (!state.petSpritesheetUrl && !state.petUrl) {
+      if (!state.petSpritesheetUrl && !state.petUrl && !snapshot.petId) {
         state.petId = normalizeBuiltInPetId(defaultPetIdForAgentKind(state.agentKind) || state.petId);
       }
       state.media = snapshot.media ? JSON.parse(JSON.stringify(snapshot.media)) : null;
