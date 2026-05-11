@@ -86,9 +86,13 @@ class ClaudeCodeMonitor:
 
     def run(self):
         log(f"monitor start host={self.buddy_host} pet={self.pet}")
+        ticks = 0
         while True:
             try:
                 self.tick()
+                ticks += 1
+                if ticks % 100 == 0:  # Every ~30s
+                    log(f"heartbeat ticks={ticks} file={os.path.basename(self.current_file or 'none')} stream_active={self.stream_active}")
             except Exception as e:
                 log(f"tick error: {e}")
             time.sleep(self.poll_interval)
@@ -147,10 +151,13 @@ class ClaudeCodeMonitor:
             log(f"watching {self.watching_session}")
 
     def read_new_content(self, size):
+        read_size = size - self.last_pos
+        if read_size <= 0:
+            return
         try:
             with open(self.current_file, "rb") as f:
                 f.seek(self.last_pos)
-                raw = f.read(size - self.last_pos)
+                raw = f.read(read_size)
                 self.last_pos = size
         except Exception:
             return
@@ -158,6 +165,8 @@ class ClaudeCodeMonitor:
         if not raw:
             return
 
+        newlines = raw.count(b"\n")
+        log(f"read {len(raw)} bytes, {newlines} lines")
         for raw_line in raw.split(b"\n"):
             line = raw_line.strip()
             if not line:
