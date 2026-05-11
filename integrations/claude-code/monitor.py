@@ -23,6 +23,13 @@ DEFAULT_POLL = 0.1
 DEFAULT_QUIET_DONE = 4.0
 DEFAULT_COOLDOWN = 3.0
 
+TOOL_LABELS = {
+    "Read": "Reading", "Write": "Writing", "Edit": "Editing",
+    "Bash": "Running", "Glob": "Searching", "Grep": "Searching",
+    "WebFetch": "Fetching", "WebSearch": "Searching", "Agent": "Subagent",
+    "TaskCreate": "Task", "TaskUpdate": "Task",
+}
+
 
 def log(msg):
     ts = time.strftime("%H:%M:%S")
@@ -220,18 +227,37 @@ class ClaudeCodeMonitor:
 
         msg = event.get("message", {})
         text = extract_text(msg)
+        content = msg.get("content", []) if isinstance(msg, dict) else []
         if not text:
-            # Check if this is a tool_use (to track tool activity)
-            content = msg.get("content", []) if isinstance(msg, dict) else []
+            # Track tool_use and update right output panel for presence
             for block in (content if isinstance(content, list) else []):
                 if block.get("type") == "tool_use":
                     self.last_content_was_tool = True
                     self.last_active_at = time.time()
+                    # Update left panel with tool activity
+                    tool_name = block.get("name", "")
+                    label = TOOL_LABELS.get(tool_name, tool_name)
+                    detail = ""
+                    inp = block.get("input", {}) or {}
+                    if tool_name in ("Read", "Write", "Edit"):
+                        detail = inp.get("file_path", "")
+                    elif tool_name == "Bash":
+                        detail = (inp.get("command", "") or "")[:120]
+                    elif tool_name in ("Glob", "Grep"):
+                        detail = inp.get("pattern", "")
+                    elif tool_name in ("WebFetch", "WebSearch"):
+                        detail = inp.get("url", "") or inp.get("query", "")
+                    body = f"{label}: {detail}" if detail else label
+                    if self.stream_active:
+                        post_json(self.buddy_host, self.buddy_port, "/api/event", {
+                            "type": "stream_chunk",
+                            "streamId": self.stream_id,
+                            "text": body + "\n",
+                        })
                     break
             return
 
         # Check what kind of content this is
-        content = msg.get("content", []) if isinstance(msg, dict) else []
         has_tool = any(
             block.get("type") == "tool_use"
             for block in (content if isinstance(content, list) else [])
