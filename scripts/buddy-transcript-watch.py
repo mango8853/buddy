@@ -92,7 +92,11 @@ def main():
     stream_ended_at = 0.0
     STREAM_GAP_SEC = 3.0   # pause between stream end and new stream start
     pending_chunks = []     # queued text during cooldown
-    last_turn_done_mtime = 0.0
+    # Ignore any turn-done signal from before we started
+    try:
+        last_turn_done_mtime = os.path.getmtime(TURN_DONE_FILE)
+    except OSError:
+        last_turn_done_mtime = 0.0
 
     def on_term(signum, frame):
         nonlocal shutdown
