@@ -273,6 +273,7 @@ class ClaudeCodeMonitor:
             "petId": self.pet,
             "maxLines": 160,
             "maxChars": 12000,
+            "idleTimeoutMs": 30000,
         })
         log(f"stream start {self.stream_id}")
 
