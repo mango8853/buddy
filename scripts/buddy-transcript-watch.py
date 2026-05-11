@@ -19,6 +19,7 @@ import urllib.error
 BRIDGE_PORT = int(os.environ.get("BUDDY_BRIDGE_PORT", "8799"))
 PET_ID = os.environ.get("BUDDY_PET_ID", "rocky")
 LOG_FILE = os.path.expanduser("~/.claude/buddy-watch.log")
+TURN_DONE_FILE = os.path.expanduser("~/.claude/buddy-turn-done")
 
 
 def log(msg):
@@ -54,8 +55,9 @@ def extract_text(message):
         return ""
     parts = []
     for block in content:
-        if block.get("type") == "text":
-            parts.append(block.get("text", ""))
+        block_type = block.get("type", "")
+        if block_type in ("text", "thinking"):
+            parts.append(block.get("text", "") or block.get("thinking", ""))
     return "".join(parts)
 
 
@@ -90,6 +92,7 @@ def main():
     stream_ended_at = 0.0
     STREAM_GAP_SEC = 3.0   # pause between stream end and new stream start
     pending_chunks = []     # queued text during cooldown
+    last_turn_done_mtime = 0.0
 
     def on_term(signum, frame):
         nonlocal shutdown
@@ -148,6 +151,16 @@ def main():
             line = f.readline()
             if not line:
                 time.sleep(0.2)
+
+                # Check for turn-done signal from Stop hook
+                if stream_active:
+                    try:
+                        mtime = os.path.getmtime(TURN_DONE_FILE)
+                        if mtime > last_turn_done_mtime:
+                            last_turn_done_mtime = mtime
+                            end_stream()
+                    except OSError:
+                        pass
 
                 # Drain pending chunks if cooldown has passed
                 if pending_chunks and not stream_active:

@@ -22,6 +22,7 @@ WATCH_SCRIPT = os.path.join(
     "buddy-transcript-watch.py",
 )
 PID_FILE = os.path.expanduser("~/.claude/buddy-watch.pid")
+TURN_DONE_FILE = os.path.expanduser("~/.claude/buddy-turn-done")
 LOG_FILE = os.path.expanduser("~/.claude/buddy-hook.log")
 
 
@@ -119,8 +120,13 @@ def handle_start(payload):
 
 
 def handle_stop(payload):
-    log("stop")
-    stop_watcher()
+    # Signal watcher that current turn is done (don't kill the watcher)
+    try:
+        with open(TURN_DONE_FILE, "w") as f:
+            f.write(str(int(time.time())))
+        log("stop: signalled turn done")
+    except OSError as e:
+        log(f"stop: failed to write turn-done: {e}")
 
 
 def main():
