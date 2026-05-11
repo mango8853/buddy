@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Watch Claude Code transcript and stream assistant text to Buddy.
+"""Persistent transcript watcher -> Buddy bridge.
 
-Usage (started by SessionStart hook):
-  python3 buddy-transcript-watch.py <session-id>
+Kept alive for the whole Claude Code session. Tails the transcript
+file continuously, detects turn boundaries, and streams assistant
+text to Buddy.
 
-Reads the .jsonl transcript file for a session, extracts assistant text
-blocks, and sends them to the Buddy bridge server for display.
+Started by SessionStart hook. Killed by SessionEnd/Stop hook.
 """
 
 import json
@@ -18,26 +18,8 @@ import urllib.error
 
 BRIDGE_PORT = int(os.environ.get("BUDDY_BRIDGE_PORT", "8799"))
 PET_ID = os.environ.get("BUDDY_PET_ID", "rocky")
-PROJECTS_DIR = os.path.expanduser("~/.claude/projects")
-SENTINEL = os.environ.get("BUDDY_WATCH_SENTINEL", "")
-
-
-def find_transcript(session_id):
-    """Find the transcript file for a session."""
-    if not os.path.isdir(PROJECTS_DIR):
-        return None
-    for root, dirs, files in os.walk(PROJECTS_DIR):
-        for f in files:
-            if f == f"{session_id}.jsonl":
-                return os.path.join(root, f)
-    return None
-
-
-def bridge_url(path):
-    return f"http://127.0.0.1:{BRIDGE_PORT}{path}"
-
-
 LOG_FILE = os.path.expanduser("~/.claude/buddy-watch.log")
+
 
 def log(msg):
     ts = time.strftime("%H:%M:%S")
@@ -47,6 +29,11 @@ def log(msg):
     except OSError:
         pass
 
+
+def bridge_url(path):
+    return f"http://127.0.0.1:{BRIDGE_PORT}{path}"
+
+
 def post(path, payload, timeout=3):
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -55,12 +42,11 @@ def post(path, payload, timeout=3):
     )
     try:
         urllib.request.urlopen(req, timeout=timeout)
-    except (urllib.error.URLError, OSError) as e:
+    except Exception as e:
         log(f"POST {path} FAILED: {e}")
 
 
 def extract_text(message):
-    """Extract text content from an assistant message."""
     if message.get("role") != "assistant":
         return ""
     content = message.get("content", [])
@@ -74,29 +60,32 @@ def extract_text(message):
 
 
 def main():
-    session_id = sys.argv[1] if len(sys.argv) > 1 else ""
-    stream_id = sys.argv[2] if len(sys.argv) > 2 else f"cc-{session_id[:8]}"
-    if not session_id:
-        print("Usage: buddy-transcript-watch.py <session-id> [stream-id]", file=sys.stderr)
-        sys.exit(1)
-
-    # Wait for transcript file to appear (max 30s)
-    transcript_path = None
-    for _ in range(60):
-        transcript_path = find_transcript(session_id)
-        if transcript_path:
-            break
-        time.sleep(0.5)
+    transcript_path = sys.argv[1] if len(sys.argv) > 1 else ""
+    session_id = sys.argv[2] if len(sys.argv) > 2 else ""
 
     if not transcript_path:
-        log(f"transcript not found for session={session_id}")
-        sys.exit(0)
+        # Try to find it
+        session_id = sys.argv[1] if len(sys.argv) > 1 else ""
+        if not session_id:
+            log("no transcript_path or session_id")
+            sys.exit(1)
+        # Search for transcript
+        projects_dir = os.path.expanduser("~/.claude/projects")
+        for root, dirs, files in os.walk(projects_dir):
+            for f in files:
+                if f == f"{session_id}.jsonl":
+                    transcript_path = os.path.join(root, f)
+                    break
+        if not transcript_path:
+            log(f"transcript not found for session={session_id}")
+            sys.exit(0)
 
-    log(f"watching session={session_id} stream={stream_id} pet={PET_ID} transcript={transcript_path}")
+    log(f"watching transcript={transcript_path} pet={PET_ID}")
+
+    stream_id_base = f"cc-{os.path.basename(transcript_path).replace('.jsonl', '')[:8]}"
+    stream_active = False
+    turn_index = 0
     sent_uuids = set()
-    started = False
-    exit_after_idle = False
-    idle_count = 0
     shutdown = False
 
     def on_term(signum, frame):
@@ -105,17 +94,25 @@ def main():
 
     signal.signal(signal.SIGTERM, on_term)
 
+    # Wait for file to exist
+    for _ in range(120):
+        if os.path.exists(transcript_path):
+            break
+        if shutdown:
+            sys.exit(0)
+        time.sleep(0.5)
+
+    if not os.path.exists(transcript_path):
+        log("transcript never appeared")
+        sys.exit(0)
+
     with open(transcript_path) as f:
-        f.seek(0, 2)
+        f.seek(0, 2)  # Start at end
 
         while not shutdown:
             line = f.readline()
             if not line:
-                time.sleep(0.3)
-                if exit_after_idle:
-                    idle_count += 1
-                    if idle_count > 10:
-                        break
+                time.sleep(0.2)
                 continue
 
             try:
@@ -123,7 +120,18 @@ def main():
             except json.JSONDecodeError:
                 continue
 
-            if event.get("type") != "assistant":
+            etype = event.get("type", "")
+
+            if etype == "user" and not event.get("isMeta"):
+                # User message = new turn. End previous stream if active.
+                if stream_active:
+                    sid = f"{stream_id_base}-{turn_index}"
+                    post("/agent/end", {"id": sid, "status": "done", "exitCode": 0})
+                    stream_active = False
+                turn_index += 1
+                continue
+
+            if etype != "assistant":
                 continue
 
             uuid = event.get("uuid", "")
@@ -135,23 +143,26 @@ def main():
             if not text:
                 continue
 
-            if not started:
-                start_payload = {
-                    "id": stream_id,
+            sid = f"{stream_id_base}-{turn_index}"
+
+            if not stream_active:
+                post("/agent/start", {
+                    "id": sid,
                     "name": "Claude Code",
                     "body": text[:200],
                     "status": "running",
                     "petId": PET_ID,
-                }
-                log(f"agent/start petId={PET_ID} stream={stream_id}")
-                post("/agent/start", start_payload)
-                started = True
+                })
+                stream_active = True
+                log(f"stream start sid={sid}")
 
-            post("/agent/log", {"id": stream_id, "text": text})
+            post("/agent/log", {"id": sid, "text": text})
 
-        if started:
-            log(f"agent/end stream={stream_id}")
-            post("/agent/end", {"id": stream_id, "status": "done", "exitCode": 0})
+    # Cleanup
+    if stream_active:
+        sid = f"{stream_id_base}-{turn_index}"
+        post("/agent/end", {"id": sid, "status": "done", "exitCode": 0})
+        log(f"stream end (shutdown) sid={sid}")
 
 
 if __name__ == "__main__":

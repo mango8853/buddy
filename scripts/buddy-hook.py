@@ -2,8 +2,8 @@
 """Claude Code hook -> Buddy bridge.
 
 Usage in settings.json hooks:
-  UserPromptSubmit:  python3 buddy-hook.py prompt
-  Stop:              python3 buddy-hook.py stop
+  SessionStart:  python3 buddy-hook.py start  (launch persistent transcript watcher)
+  Stop:          python3 buddy-hook.py stop   (kill watcher, end any active stream)
 """
 
 import json
@@ -22,7 +22,6 @@ WATCH_SCRIPT = os.path.join(
     "buddy-transcript-watch.py",
 )
 PID_FILE = os.path.expanduser("~/.claude/buddy-watch.pid")
-STATE_FILE = os.path.expanduser("~/.claude/buddy-stream.json")
 LOG_FILE = os.path.expanduser("~/.claude/buddy-hook.log")
 
 
@@ -46,25 +45,9 @@ def post(path, payload, timeout=3):
         headers={"Content-Type": "application/json"},
     )
     try:
-        resp = urllib.request.urlopen(req, timeout=timeout)
-        log(f"POST {path} -> {resp.status}")
+        urllib.request.urlopen(req, timeout=timeout)
     except Exception as e:
         log(f"POST {path} FAILED: {e}")
-
-
-def read_state():
-    try:
-        with open(STATE_FILE) as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-
-def write_state(state):
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE + ".tmp", "w") as f:
-        json.dump(state, f)
-    os.replace(STATE_FILE + ".tmp", STATE_FILE)
 
 
 def stop_watcher():
@@ -81,67 +64,47 @@ def stop_watcher():
         pass
 
 
-def start_watcher(session_id, stream_id):
-    stop_watcher()
+def start_watcher(transcript_path, session_id):
+    # Don't kill existing watcher - there should only be one per session
+    existing_pid = None
+    try:
+        with open(PID_FILE) as f:
+            existing_pid = int(f.read().strip())
+        os.kill(existing_pid, 0)  # Check if alive
+        log(f"watcher already running pid={existing_pid}")
+        return
+    except (FileNotFoundError, ValueError, ProcessLookupError, OSError):
+        pass
+
     env = os.environ.copy()
     env["BUDDY_PET_ID"] = PET_ID
     proc = subprocess.Popen(
-        [sys.executable, WATCH_SCRIPT, session_id, stream_id],
+        [sys.executable, WATCH_SCRIPT, transcript_path, session_id],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         env=env,
     )
     with open(PID_FILE, "w") as f:
         f.write(str(proc.pid))
-    log(f"started watcher pid={proc.pid} session={session_id} stream={stream_id}")
+    log(f"started watcher pid={proc.pid} transcript={transcript_path}")
 
 
-def handle_prompt(payload):
+def handle_start(payload):
+    transcript_path = payload.get("transcript_path", "")
     session_id = payload.get("session_id", "")
-    log(f"prompt session_id={session_id} payload_keys={list(payload.keys())}")
+    log(f"start transcript_path={transcript_path} session_id={session_id}")
 
-    if not session_id:
-        return
-
-    stream_id = f"cc-{session_id[:8]}"
-
-    # Record active stream for stop handler
-    state = read_state()
-    state[session_id] = {"stream_id": stream_id, "active": True, "ts": time.time()}
-    # Clean stale entries (>1 hour)
-    cutoff = time.time() - 3600
-    for k in list(state.keys()):
-        if state[k].get("ts", 0) < cutoff:
-            del state[k]
-    write_state(state)
-
-    start_watcher(session_id, stream_id)
+    if transcript_path:
+        start_watcher(transcript_path, session_id)
 
 
 def handle_stop(payload):
-    session_id = payload.get("session_id", "")
-    log(f"stop session_id={session_id} payload_keys={list(payload.keys())}")
-
-    state = read_state()
-    log(f"stop: state has {len(state)} entries")
-
-    for sid, entry in list(state.items()):
-        if entry.get("active"):
-            sid_stream = entry.get("stream_id", "")
-            log(f"ending stream {sid_stream} for session {sid}")
-            post("/agent/end", {
-                "id": sid_stream,
-                "status": "done",
-                "exitCode": 0,
-            })
-            entry["active"] = False
-
-    write_state(state)
+    log("stop")
     stop_watcher()
 
 
 def main():
-    mode = sys.argv[1] if len(sys.argv) > 1 else "prompt"
+    mode = sys.argv[1] if len(sys.argv) > 1 else "start"
 
     try:
         raw = sys.stdin.read()
@@ -149,9 +112,10 @@ def main():
     except (json.JSONDecodeError, IOError):
         payload = {}
 
-    log(f"mode={mode}")
-    if mode == "prompt":
-        handle_prompt(payload)
+    log(f"mode={mode} keys={list(payload.keys())}")
+
+    if mode == "start":
+        handle_start(payload)
     elif mode == "stop":
         handle_stop(payload)
 
