@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
-"""Claude Code hook -> Buddy bridge. Pure hook-driven, no transcript tailing.
+"""Claude Code hook -> Buddy bridge.
 
-Hooks config:
-  UserPromptSubmit  -> python3 buddy-hook.py prompt   (start stream)
-  PostToolUse       -> python3 buddy-hook.py tool      (update status)
-  Stop              -> python3 buddy-hook.py stop       (end stream, send text)
+Hooks:
+  UserPromptSubmit -> prompt  (start stream + transcript tailer)
+  PostToolUse      -> tool    (update left status)
+  Stop             -> stop    (end stream gracefully)
+
+The transcript tailer runs as a background subprocess, streaming
+assistant text blocks to Buddy in real-time as they appear in the
+transcript file.
 """
 
 import json
 import os
+import signal
+import subprocess
 import sys
 import time
 import urllib.request
@@ -16,6 +22,11 @@ import urllib.error
 
 BRIDGE_PORT = int(os.environ.get("BUDDY_BRIDGE_PORT", "8799"))
 PET_ID = os.environ.get("BUDDY_PET_ID", "rocky")
+TAILER_SCRIPT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "buddy-transcript-tail.py",
+)
+PID_FILE = os.path.expanduser("~/.claude/buddy-tailer.pid")
 STATE_FILE = os.path.expanduser("~/.claude/buddy-stream.json")
 LOG_FILE = os.path.expanduser("~/.claude/buddy-hook.log")
 
@@ -79,119 +90,119 @@ def tool_detail(name, inp):
     return ""
 
 
+# ── tailer management ───────────────────────────────────────────
+
+def stop_tailer():
+    try:
+        with open(PID_FILE) as f:
+            pid = int(f.read().strip())
+        os.kill(pid, signal.SIGTERM)
+        log(f"tailer: sent SIGTERM to pid={pid}")
+    except (FileNotFoundError, ValueError, ProcessLookupError, OSError):
+        pass
+    try:
+        os.remove(PID_FILE)
+    except FileNotFoundError:
+        pass
+
+
+def start_tailer(transcript_path, stream_id):
+    stop_tailer()  # Kill any existing tailer
+    env = os.environ.copy()
+    env["BUDDY_PET_ID"] = PET_ID
+    proc = subprocess.Popen(
+        [sys.executable, TAILER_SCRIPT, transcript_path, stream_id],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    with open(PID_FILE, "w") as f:
+        f.write(str(proc.pid))
+
+
+# ── hook handlers ────────────────────────────────────────────────
+
 def handle_prompt(payload):
     session_id = payload.get("session_id", "")
+    transcript_path = payload.get("transcript_path", "")
     if not session_id:
         return
-    transcript_path = payload.get("transcript_path", "")
 
-    # End any previous stream first, sending unsent text if available
+    # End any previous stream
     state = read_state()
     for sid, entry in list(state.items()):
         if entry.get("active"):
-            old_stream = entry.get("stream_id", "")
-            old_transcript = entry.get("transcript", "")
-            # Try to send text from transcript (in case Stop hook didn't fire)
-            if old_transcript and os.path.exists(old_transcript):
-                try:
-                    text = read_latest_assistant_text(old_transcript)
-                    if text:
-                        post("/agent/log", {"id": old_stream, "text": text})
-                        log(f"prompt: flushed {len(text)} chars for {old_stream}")
-                except Exception:
-                    pass
-            post("/agent/end", {"id": old_stream, "status": "done", "exitCode": 0})
-            log(f"prompt: ended previous stream {old_stream}")
+            post("/agent/end", {
+                "id": entry.get("stream_id", ""),
+                "status": "done", "exitCode": 0,
+            })
             entry["active"] = False
 
-    # Use turn counter for unique stream IDs
     turn = state.get(session_id, {}).get("turn", 0) + 1
     stream_id = f"cc-{session_id[:8]}-{turn}"
 
-    state[session_id] = {"stream_id": stream_id, "active": True, "turn": turn, "ts": time.time(), "transcript": transcript_path}
+    state[session_id] = {"stream_id": stream_id, "active": True, "turn": turn, "ts": time.time()}
     write_state(state)
 
+    # Start stream
     post("/agent/start", {
-        "id": stream_id,
-        "name": "Claude Code",
-        "body": "Thinking...",
-        "status": "thinking",
-        "petId": PET_ID,
+        "id": stream_id, "name": "Claude Code",
+        "body": "Thinking...", "status": "thinking", "petId": PET_ID,
     })
-    log(f"prompt -> stream start {stream_id}")
+
+    # Start transcript tailer for real-time text streaming
+    if transcript_path:
+        start_tailer(transcript_path, stream_id)
+
+    log(f"prompt -> stream {stream_id}")
 
 
 def handle_tool(payload):
     session_id = payload.get("session_id", "")
     tool_name = payload.get("tool_name", "")
     tool_input = payload.get("tool_input", {}) or {}
-    log(f"tool: {tool_name} session={session_id[:8]}")
 
     state = read_state()
     entry = state.get(session_id)
     if not entry or not entry.get("active"):
-        log(f"tool: no active stream, calling handle_prompt")
-        if session_id:
-            handle_prompt(payload)
-            state = read_state()
-            entry = state.get(session_id)
-        if not entry:
-            log(f"tool: still no entry after prompt, giving up")
-            return
+        return
 
-    stream_id = entry["stream_id"]
     label = TOOL_LABELS.get(tool_name, tool_name)
     detail = tool_detail(tool_name, tool_input)
-    log(f"tool: stream={stream_id} label={label} detail={detail[:60] if detail else ''}")
+    stream_id = entry["stream_id"]
 
-    # Left panel: just status label
     post("/agent/status", {"id": stream_id, "status": "running", "body": label})
-    # Right panel: tool detail as output
-    log_text = f"{label}: {detail}" if detail else label
-    post("/agent/log", {"id": stream_id, "text": log_text + "\n"})
+    if detail:
+        post("/agent/log", {"id": stream_id, "text": f"{label}: {detail}\n"})
+
+    log(f"tool: {label} stream={stream_id}")
 
 
 def handle_stop(payload):
     session_id = payload.get("session_id", "")
-    last_msg = payload.get("last_assistant_message", {}) or {}
 
     state = read_state()
     entry = state.get(session_id)
     if not entry or not entry.get("active"):
-        log(f"stop: no active stream for {session_id[:8]}")
+        # Try to end stream for any active entry
+        for sid, e in list(state.items()):
+            if e.get("active"):
+                post("/agent/end", {
+                    "id": e.get("stream_id", ""),
+                    "status": "done", "exitCode": 0,
+                })
+                e["active"] = False
+                log(f"stop: ended {e.get('stream_id','')} (fallback)")
+        write_state(state)
+        stop_tailer()
         return
 
     stream_id = entry["stream_id"]
 
-    # Extract text from last_assistant_message (always available, no file read)
-    content = last_msg.get("content", [])
-    text_parts = []
-    if isinstance(content, list):
-        for block in content:
-            if block.get("type") in ("text", "thinking"):
-                t = block.get("text", "") or block.get("thinking", "")
-                if t:
-                    text_parts.append(t)
-
-    if text_parts:
-        full_text = "".join(text_parts)
-        post("/agent/log", {"id": stream_id, "text": full_text})
-        log(f"stop: sent {len(full_text)} chars from last_assistant_message")
-    else:
-        # Fallback: try reading transcript
-        transcript_path = payload.get("transcript_path", "")
-        if transcript_path and os.path.exists(transcript_path):
-            try:
-                text = read_latest_assistant_text(transcript_path)
-                if text:
-                    post("/agent/log", {"id": stream_id, "text": text})
-                    log(f"stop: sent {len(text)} chars from transcript")
-                else:
-                    log(f"stop: no text found in last_assistant_message or transcript")
-            except Exception as e:
-                log(f"stop: error: {e}")
-        else:
-            log(f"stop: no text source available (content_types={[c.get('type','?') for c in content] if isinstance(content, list) else 'N/A'})")
+    # Signal tailer to stop gracefully (it will flush any remaining text)
+    stop_tailer()
+    # Give tailer a moment to send final text
+    time.sleep(0.3)
 
     post("/agent/end", {"id": stream_id, "status": "done", "exitCode": 0})
     entry["active"] = False
@@ -199,47 +210,10 @@ def handle_stop(payload):
     log(f"stop -> stream end {stream_id}")
 
 
-def read_latest_assistant_text(transcript_path):
-    """Read assistant messages since the last user message, extract text/thinking."""
-    if not os.path.exists(transcript_path):
-        return ""
-    try:
-        with open(transcript_path) as f:
-            f.seek(0, 2)
-            size = f.tell()
-            start = max(0, size - 80000)
-            f.seek(start)
-            if start > 0:
-                f.readline()
-            lines = f.readlines()
-    except Exception:
-        return ""
-
-    # Collect all assistant entries since the last non-meta user message
-    parts = []
-    for line in reversed(lines):
-        try:
-            event = json.loads(line.strip())
-        except json.JSONDecodeError:
-            continue
-        etype = event.get("type", "")
-        if etype == "user" and not event.get("isMeta"):
-            break  # Stop at user message boundary
-        if etype == "assistant":
-            msg = event.get("message", {})
-            content = msg.get("content", [])
-            if isinstance(content, list):
-                for block in content:
-                    if block.get("type") in ("text", "thinking"):
-                        t = block.get("text", "") or block.get("thinking", "")
-                        if t:
-                            parts.append(t)
-    return "".join(reversed(parts))
-
+# ── main ─────────────────────────────────────────────────────────
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "prompt"
-
     try:
         raw = sys.stdin.read()
         payload = json.loads(raw) if raw.strip() else {}
