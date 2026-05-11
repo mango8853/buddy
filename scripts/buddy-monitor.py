@@ -111,10 +111,8 @@ class ClaudeCodeMonitor:
         if size > self.last_pos:
             self.read_new_content(size)
 
-        # End stream only on explicit turn boundary or very long quiet (30s fallback)
-        if self.stream_active and self.last_active_at > 0:
-            if time.time() - self.last_active_at > 30.0:
-                self.end_stream()
+        # Stream ends only on explicit turn boundary (user message).
+        # This keeps text displayed until the user sends their next prompt.
 
     def find_latest_transcript(self):
         if not os.path.isdir(self.projects_dir):
@@ -170,10 +168,22 @@ class ClaudeCodeMonitor:
                 continue
             self.handle_event(event)
 
+    def is_real_user_prompt(self, event):
+        """Real user prompts, not tool results or meta messages."""
+        if event.get("isMeta"):
+            return False
+        msg = event.get("message", {})
+        content = msg.get("content", []) if isinstance(msg, dict) else []
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "tool_result":
+                    return False  # Tool result, not a real prompt
+        return True
+
     def handle_event(self, event):
         etype = event.get("type", "")
 
-        if etype == "user" and not event.get("isMeta"):
+        if etype == "user" and self.is_real_user_prompt(event):
             # Turn boundary: user sent a new message, current turn is done
             if self.stream_active:
                 self.end_stream()
