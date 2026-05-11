@@ -37,6 +37,16 @@ def bridge_url(path):
     return f"http://127.0.0.1:{BRIDGE_PORT}{path}"
 
 
+LOG_FILE = os.path.expanduser("~/.claude/buddy-watch.log")
+
+def log(msg):
+    ts = time.strftime("%H:%M:%S")
+    try:
+        with open(LOG_FILE, "a") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except OSError:
+        pass
+
 def post(path, payload, timeout=3):
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
@@ -45,8 +55,8 @@ def post(path, payload, timeout=3):
     )
     try:
         urllib.request.urlopen(req, timeout=timeout)
-    except (urllib.error.URLError, OSError):
-        pass
+    except (urllib.error.URLError, OSError) as e:
+        log(f"POST {path} FAILED: {e}")
 
 
 def extract_text(message):
@@ -79,7 +89,10 @@ def main():
         time.sleep(0.5)
 
     if not transcript_path:
+        log(f"transcript not found for session={session_id}")
         sys.exit(0)
+
+    log(f"watching session={session_id} stream={stream_id} pet={PET_ID} transcript={transcript_path}")
     sent_uuids = set()
     started = False
     exit_after_idle = False
@@ -123,18 +136,21 @@ def main():
                 continue
 
             if not started:
-                post("/agent/start", {
+                start_payload = {
                     "id": stream_id,
                     "name": "Claude Code",
                     "body": text[:200],
                     "status": "running",
                     "petId": PET_ID,
-                })
+                }
+                log(f"agent/start petId={PET_ID} stream={stream_id}")
+                post("/agent/start", start_payload)
                 started = True
 
             post("/agent/log", {"id": stream_id, "text": text})
 
         if started:
+            log(f"agent/end stream={stream_id}")
             post("/agent/end", {"id": stream_id, "status": "done", "exitCode": 0})
 
 
