@@ -83,6 +83,7 @@ class ClaudeCodeMonitor:
         self.stream_ended_at = 0.0
         self.sent_uuids = set()
         self.watching_session = ""
+        self.last_content_was_tool = False
 
     def run(self):
         log(f"monitor start host={self.buddy_host} pet={self.pet}")
@@ -115,10 +116,14 @@ class ClaudeCodeMonitor:
         if size > self.last_pos:
             self.read_new_content(size)
 
-        # End stream after 8s of silence (Claude finished, no new content)
+        # End stream after quiet period, but only if the last content
+        # wasn't a tool_use (tools may take many seconds to complete).
         if self.stream_active and self.last_active_at > 0:
-            if time.time() - self.last_active_at > 8.0:
-                self.end_stream()
+            quiet = time.time() - self.last_active_at
+            if self.last_content_was_tool and quiet > 60.0:
+                self.end_stream()  # Tool stuck? Very long timeout
+            elif not self.last_content_was_tool and quiet > 6.0:
+                self.end_stream()  # Text/thinking quiet → likely done
 
         # Start new stream after cooldown (if there's pending content)
         if not self.stream_active and self.stream_ended_at > 0:
@@ -213,9 +218,26 @@ class ClaudeCodeMonitor:
             return
         self.sent_uuids.add(uuid)
 
-        text = extract_text(event.get("message", {}))
+        msg = event.get("message", {})
+        text = extract_text(msg)
         if not text:
+            # Check if this is a tool_use (to track tool activity)
+            content = msg.get("content", []) if isinstance(msg, dict) else []
+            for block in (content if isinstance(content, list) else []):
+                if block.get("type") == "tool_use":
+                    self.last_content_was_tool = True
+                    self.last_active_at = time.time()
+                    break
             return
+
+        # Check what kind of content this is
+        content = msg.get("content", []) if isinstance(msg, dict) else []
+        has_tool = any(
+            block.get("type") == "tool_use"
+            for block in (content if isinstance(content, list) else [])
+        )
+        if not has_tool:
+            self.last_content_was_tool = False
 
         if not self.stream_active:
             # Check cooldown
