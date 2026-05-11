@@ -83,16 +83,21 @@ def handle_prompt(payload):
     session_id = payload.get("session_id", "")
     if not session_id:
         return
-    stream_id = f"cc-{session_id[:8]}"
+    transcript_path = payload.get("transcript_path", "")
 
     # End any previous stream first
     state = read_state()
     for sid, entry in list(state.items()):
         if entry.get("active"):
             post("/agent/end", {"id": entry.get("stream_id", ""), "status": "done", "exitCode": 0})
+            log(f"prompt: ended previous stream {entry.get('stream_id', '')}")
             entry["active"] = False
 
-    state[session_id] = {"stream_id": stream_id, "active": True, "ts": time.time()}
+    # Use turn counter for unique stream IDs
+    turn = state.get(session_id, {}).get("turn", 0) + 1
+    stream_id = f"cc-{session_id[:8]}-{turn}"
+
+    state[session_id] = {"stream_id": stream_id, "active": True, "turn": turn, "ts": time.time(), "transcript": transcript_path}
     write_state(state)
 
     post("/agent/start", {
@@ -134,7 +139,7 @@ def handle_tool(payload):
 
 def handle_stop(payload):
     session_id = payload.get("session_id", "")
-    last_msg = payload.get("last_assistant_message", {}) or {}
+    transcript_path = payload.get("transcript_path", "")
 
     state = read_state()
     entry = state.get(session_id)
@@ -144,23 +149,58 @@ def handle_stop(payload):
 
     stream_id = entry["stream_id"]
 
-    # Extract text from the last assistant message
-    content = last_msg.get("content", [])
-    if isinstance(content, list):
-        text_parts = []
-        for block in content:
-            if block.get("type") in ("text", "thinking"):
-                t = block.get("text", "") or block.get("thinking", "")
-                if t:
-                    text_parts.append(t)
-        if text_parts:
-            # Send as log (don't re-send what's already been sent by tools)
-            pass  # Text is usually already shown via tool updates
+    # Read transcript to extract assistant text from this turn
+    if transcript_path:
+        try:
+            text = read_latest_assistant_text(transcript_path)
+            if text:
+                post("/agent/log", {"id": stream_id, "text": text})
+                log(f"stop: sent {len(text)} chars of assistant text")
+        except Exception as e:
+            log(f"stop: transcript read error: {e}")
 
     post("/agent/end", {"id": stream_id, "status": "done", "exitCode": 0})
     entry["active"] = False
     write_state(state)
     log(f"stop -> stream end {stream_id}")
+
+
+def read_latest_assistant_text(transcript_path):
+    """Read assistant messages since the last user message, extract text/thinking."""
+    if not os.path.exists(transcript_path):
+        return ""
+    try:
+        with open(transcript_path) as f:
+            f.seek(0, 2)
+            size = f.tell()
+            start = max(0, size - 80000)
+            f.seek(start)
+            if start > 0:
+                f.readline()
+            lines = f.readlines()
+    except Exception:
+        return ""
+
+    # Collect all assistant entries since the last non-meta user message
+    parts = []
+    for line in reversed(lines):
+        try:
+            event = json.loads(line.strip())
+        except json.JSONDecodeError:
+            continue
+        etype = event.get("type", "")
+        if etype == "user" and not event.get("isMeta"):
+            break  # Stop at user message boundary
+        if etype == "assistant":
+            msg = event.get("message", {})
+            content = msg.get("content", [])
+            if isinstance(content, list):
+                for block in content:
+                    if block.get("type") in ("text", "thinking"):
+                        t = block.get("text", "") or block.get("thinking", "")
+                        if t:
+                            parts.append(t)
+    return "".join(reversed(parts))
 
 
 def main():
