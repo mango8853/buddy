@@ -19,7 +19,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-DEFAULT_POLL = 0.3
+DEFAULT_POLL = 0.1
 DEFAULT_QUIET_DONE = 4.0
 DEFAULT_COOLDOWN = 3.0
 
@@ -262,6 +262,7 @@ class ClaudeCodeMonitor:
             "streamId": self.stream_id,
             "status": "done",
             "exitCode": 0,
+            "idleTimeoutMs": 30000,
         })
         log(f"stream end {self.stream_id}")
         self.stream_active = False
