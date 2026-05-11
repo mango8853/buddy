@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Real-time transcript tailer -> Buddy bridge.
 
-Runs as a subprocess. Tails a Claude Code transcript file and streams
-assistant text/thinking blocks to Buddy as they appear.
+Polls the transcript file and reads new content as it appears.
+Avoids Python's buffered readline() which can miss content from
+files being written by another process.
 
-Usage: python3 buddy-transcript-tail.py <transcript_path> <stream_id>
+Usage: python3 buddy-transcript-tail.py <transcript_path> <stream_id> [start_offset]
 """
 
 import json
@@ -58,13 +59,13 @@ def extract_text(message):
 def main():
     transcript_path = sys.argv[1] if len(sys.argv) > 1 else ""
     stream_id = sys.argv[2] if len(sys.argv) > 2 else ""
-    start_offset = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+    pos = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 
     if not transcript_path or not stream_id:
         log("missing transcript_path or stream_id")
         sys.exit(1)
 
-    log(f"start transcript={os.path.basename(transcript_path)} stream={stream_id} offset={start_offset}")
+    log(f"start transcript={os.path.basename(transcript_path)} stream={stream_id} pos={pos}")
 
     # Wait for file
     for _ in range(200):
@@ -77,45 +78,52 @@ def main():
 
     sent_uuids = set()
     shutdown = False
+    line_count = 0
 
     def on_term(signum, frame):
         nonlocal shutdown
         shutdown = True
-        log("received SIGTERM")
 
     signal.signal(signal.SIGTERM, on_term)
 
-    line_count = 0
-    last_pos = start_offset
+    while not shutdown:
+        try:
+            cur_size = os.path.getsize(transcript_path)
+        except OSError:
+            time.sleep(0.3)
+            continue
 
-    with open(transcript_path) as f:
-        f.seek(start_offset)
+        if cur_size <= pos:
+            time.sleep(0.3)
+            continue
 
-        while not shutdown:
-            line = f.readline()
+        # New content available - open fresh and read from last position
+        try:
+            with open(transcript_path, "rb") as f:
+                f.seek(pos)
+                raw = f.read(cur_size - pos)
+                pos = cur_size
+        except Exception:
+            time.sleep(0.3)
+            continue
+
+        if not raw:
+            continue
+
+        # Split into lines and process
+        lines = raw.split(b"\n")
+        for raw_line in lines:
+            line = raw_line.strip()
             if not line:
-                time.sleep(0.15)
-                # Check if file grew (another process might be writing)
-                try:
-                    cur_size = os.path.getsize(transcript_path)
-                    if cur_size > last_pos + 100:
-                        log(f"file grew from {last_pos} to {cur_size} but readline returned empty - buffering issue?")
-                except OSError:
-                    pass
+                continue
+            try:
+                event = json.loads(line.decode("utf-8", errors="replace"))
+            except Exception:
                 continue
 
             line_count += 1
-            last_pos = f.tell()
-            if line_count <= 3:
-                log(f"line#{line_count}: len={len(line)} preview={line[:100]}")
-
-            try:
-                event = json.loads(line.strip())
-            except json.JSONDecodeError:
-                log(f"line#{line_count}: JSON parse error: {line[:80]}")
-                continue
-
             etype = event.get("type", "")
+
             if etype == "assistant":
                 uuid = event.get("uuid", "")
                 if uuid in sent_uuids:
@@ -124,19 +132,11 @@ def main():
 
                 text = extract_text(event.get("message", {}))
                 if text:
-                    log(f"sending {len(text)} chars")
                     post("/agent/log", {"id": stream_id, "text": text})
-                else:
-                    # Log content types for debugging
-                    msg = event.get("message", {})
-                    content = msg.get("content", [])
-                    types = [c.get("type", "?") for c in content] if isinstance(content, list) else "N/A"
-                    log(f"no text extracted, content_types={types}")
-            elif etype == "user":
-                log(f"line#{line_count}: user message seen")
-            # Don't log every file-history-snapshot etc.
+                    if line_count <= 5 or len(sent_uuids) % 10 == 0:
+                        log(f"sent {len(text)} chars (total {len(sent_uuids)} messages)")
 
-    log(f"exit stream={stream_id} lines_read={line_count}")
+    log(f"exit stream={stream_id} lines={line_count} messages={len(sent_uuids)}")
 
 
 if __name__ == "__main__":
