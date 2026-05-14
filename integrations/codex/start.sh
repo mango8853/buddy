@@ -11,6 +11,8 @@ THREAD_ID="${BUDDY_CODEX_THREAD_ID:-}"
 POLL_INTERVAL="${BUDDY_CODEX_POLL_INTERVAL:-1.0}"
 QUIET_DONE_SECONDS="${BUDDY_CODEX_QUIET_DONE_SECONDS:-20}"
 BUDDY_CODEX_BOOTSTRAP="${BUDDY_CODEX_BOOTSTRAP:-1}"
+BUDDY_CODEX_PET_ID="${BUDDY_CODEX_PET_ID:-}"
+BUDDY_CODEX_PET_SPRITESHEET_URL="${BUDDY_CODEX_PET_SPRITESHEET_URL:-}"
 
 case "${THREAD_ID}" in
   latest|LATEST|auto|AUTO)
@@ -28,7 +30,15 @@ send_bootstrap() {
   if [ -n "$THREAD_ID" ]; then
     BODY="Watching Codex thread ${THREAD_ID}"
   fi
-  python3 "$ROOT/bridge/buddy.py" --host "$BUDDY_HOST" message "$BODY" --title "Codex linked" --mood linked >/dev/null 2>&1 || true
+  PET_ARGS=""
+  if [ -n "$BUDDY_CODEX_PET_ID" ]; then
+    PET_ARGS="$PET_ARGS --pet-id $BUDDY_CODEX_PET_ID"
+  fi
+  if [ -n "$BUDDY_CODEX_PET_SPRITESHEET_URL" ]; then
+    PET_ARGS="$PET_ARGS --pet-spritesheet-url $BUDDY_CODEX_PET_SPRITESHEET_URL"
+  fi
+  # shellcheck disable=SC2086
+  python3 "$ROOT/bridge/buddy.py" --host "$BUDDY_HOST" message "$BODY" --title "Codex linked" --mood linked $PET_ARGS >/dev/null 2>&1 || true
 }
 
 if [ -f "$PIDFILE" ]; then
@@ -49,6 +59,8 @@ BUDDY_HOST="$BUDDY_HOST" \
 THREAD_ID="$THREAD_ID" \
 POLL_INTERVAL="$POLL_INTERVAL" \
 QUIET_DONE_SECONDS="$QUIET_DONE_SECONDS" \
+BUDDY_CODEX_PET_ID="$BUDDY_CODEX_PET_ID" \
+BUDDY_CODEX_PET_SPRITESHEET_URL="$BUDDY_CODEX_PET_SPRITESHEET_URL" \
 python3 - <<'PY'
 import os
 import subprocess
@@ -61,6 +73,8 @@ buddy_host = os.environ["BUDDY_HOST"]
 thread_id = os.environ.get("THREAD_ID", "")
 poll_interval = os.environ["POLL_INTERVAL"]
 quiet_done_seconds = os.environ["QUIET_DONE_SECONDS"]
+pet_id = os.environ.get("BUDDY_CODEX_PET_ID", "")
+pet_spritesheet_url = os.environ.get("BUDDY_CODEX_PET_SPRITESHEET_URL", "")
 
 cmd = [
     "python3",
@@ -74,6 +88,10 @@ cmd = [
     "--status-file",
     statusfile,
 ]
+if pet_id:
+    cmd.extend(["--pet-id", pet_id])
+if pet_spritesheet_url:
+    cmd.extend(["--pet-spritesheet-url", pet_spritesheet_url])
 if thread_id:
     cmd.extend(["--thread-id", thread_id])
 

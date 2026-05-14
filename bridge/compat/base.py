@@ -14,10 +14,19 @@ class BuddyCompatAdapter:
     stable Buddy protocol described in docs/protocol.md.
     """
 
-    def __init__(self, stream_id: str, name: str = "Agent", agent_kind: str = "") -> None:
+    def __init__(
+        self,
+        stream_id: str,
+        name: str = "Agent",
+        agent_kind: str = "",
+        pet_id: str = "",
+        pet_spritesheet_url: str = "",
+    ) -> None:
         self.stream_id = stream_id
         self.name = name
         self.agent_kind = str(agent_kind or "").strip()
+        self.pet_id = str(pet_id or "").strip()
+        self.pet_spritesheet_url = str(pet_spritesheet_url or "").strip()
 
     def translate(self, payload: Dict[str, Any]) -> List[BuddyEvent]:
         raise NotImplementedError
@@ -42,6 +51,10 @@ class BuddyCompatAdapter:
         }
         if self.agent_kind:
             event["agentKind"] = self.agent_kind
+        if self.pet_id:
+            event["petId"] = self.pet_id
+        if self.pet_spritesheet_url:
+            event["petSpritesheetUrl"] = self.pet_spritesheet_url
         if pet_url:
             event["petUrl"] = pet_url
         return event
@@ -54,6 +67,10 @@ class BuddyCompatAdapter:
         }
         if self.agent_kind:
             event["agentKind"] = self.agent_kind
+        if self.pet_id:
+            event["petId"] = self.pet_id
+        if self.pet_spritesheet_url:
+            event["petSpritesheetUrl"] = self.pet_spritesheet_url
         return event
 
     def _stream_meta(self, *, status: str, title: Optional[str] = None, body: str = "") -> BuddyEvent:

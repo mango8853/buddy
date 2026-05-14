@@ -57,6 +57,15 @@ export BUDDY_CODEX_QUIET_DONE_SECONDS=20
 ./integrations/codex/start.sh
 ```
 
+To force Codex events to use a specific Buddy pet, pass a pet id and, for
+custom pets, the already-uploaded spritesheet URL:
+
+```sh
+export BUDDY_CODEX_PET_ID=kunkun
+export BUDDY_CODEX_PET_SPRITESHEET_URL=/media/your-uploaded-kunkun.webp
+./integrations/codex/start.sh
+```
+
 To follow the latest active session instead of pinning one thread:
 
 ```sh

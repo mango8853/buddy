@@ -61,6 +61,8 @@ class CodexPrivateMonitor:
         quiet_done_seconds: float,
         sessions_dir: Path,
         status_file: Path,
+        pet_id: str,
+        pet_spritesheet_url: str,
     ) -> None:
         self.buddy = buddy
         self.state_db = state_db
@@ -70,6 +72,8 @@ class CodexPrivateMonitor:
         self.quiet_done_seconds = quiet_done_seconds
         self.sessions_dir = sessions_dir
         self.status_file = status_file
+        self.pet_id = pet_id
+        self.pet_spritesheet_url = pet_spritesheet_url
         self.last_log_id = 0
         self.last_active_at = 0.0
         self.current_thread: Optional[ThreadInfo] = None
@@ -143,7 +147,12 @@ class CodexPrivateMonitor:
         if self.adapter is not None and self.started and not self.ended:
             self.emit({"type": "end", "status": "done", "exitCode": 0})
         self.current_thread = thread
-        self.adapter = CodexPrivateCompatAdapter(stream_id=thread.thread_id, name="Codex")
+        self.adapter = CodexPrivateCompatAdapter(
+            stream_id=thread.thread_id,
+            name="Codex",
+            pet_id=self.pet_id,
+            pet_spritesheet_url=self.pet_spritesheet_url,
+        )
         self.started = False
         self.ended = False
         self.last_active_at = 0.0
@@ -395,6 +404,8 @@ class CodexPrivateMonitor:
             "lastEmitOkAt": self.last_emit_ok_at,
             "buddyHost": self.buddy.host,
             "buddyPort": self.buddy.port,
+            "petId": self.pet_id,
+            "petSpritesheetUrl": self.pet_spritesheet_url,
             "waitingAnnounced": self.waiting_announced,
             "lastError": self.last_error,
             "updatedAt": time.time(),
@@ -421,6 +432,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sessions-dir", default=str(DEFAULT_SESSIONS_DIR), help="Path to Codex sessions directory")
     parser.add_argument("--status-file", default=str(DEFAULT_STATUS_FILE), help="Path to Codex Buddy status json file")
     parser.add_argument("--thread-id", default="", help="Optional Codex thread id to follow")
+    parser.add_argument("--pet-id", default=os.environ.get("BUDDY_CODEX_PET_ID", ""), help="Optional Buddy pet id override")
+    parser.add_argument(
+        "--pet-spritesheet-url",
+        default=os.environ.get("BUDDY_CODEX_PET_SPRITESHEET_URL", ""),
+        help="Optional Buddy pet spritesheet URL override",
+    )
     parser.add_argument("--poll-interval", type=float, default=1.0, help="Polling interval in seconds")
     parser.add_argument(
         "--quiet-done-seconds",
@@ -440,6 +457,8 @@ def main() -> int:
         log_db=Path(args.log_db),
         sessions_dir=Path(args.sessions_dir),
         status_file=Path(args.status_file),
+        pet_id=str(args.pet_id or ""),
+        pet_spritesheet_url=str(args.pet_spritesheet_url or ""),
         thread_id=args.thread_id or None,
         poll_interval=float(args.poll_interval),
         quiet_done_seconds=float(args.quiet_done_seconds),

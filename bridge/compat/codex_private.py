@@ -24,8 +24,20 @@ class CodexPrivateCompatAdapter(BuddyCompatAdapter):
         "failed": "failed",
     }
 
-    def __init__(self, stream_id: str, name: str = "Codex") -> None:
-        super().__init__(stream_id=stream_id, name=name, agent_kind="codex")
+    def __init__(
+        self,
+        stream_id: str,
+        name: str = "Codex",
+        pet_id: str = "",
+        pet_spritesheet_url: str = "",
+    ) -> None:
+        super().__init__(
+            stream_id=stream_id,
+            name=name,
+            agent_kind="codex",
+            pet_id=pet_id,
+            pet_spritesheet_url=pet_spritesheet_url,
+        )
         self.started = False
 
     def translate(self, payload: Dict[str, Any]) -> List[BuddyEvent]:
